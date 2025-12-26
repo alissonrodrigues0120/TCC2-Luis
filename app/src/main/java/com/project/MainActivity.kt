@@ -23,6 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import com.project.ui.login.LoginScreen
+import com.project.ui.login.ResetPasswordScreen
+import com.project.ui.login.RegisterScreen
+import com.project.ui.login.AuthScreen
 import com.project.ui.theme.TcctwoTheme
 
 class MainActivity : ComponentActivity() {
@@ -37,7 +41,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@PreviewScreenSizes
+@Preview
 @Composable
 fun MainScreen() {
     var currentDestination by rememberSaveable {
@@ -79,17 +83,48 @@ fun MainScreen() {
 @Composable
 fun TcctwoApp() {
     var isLoggedIn by rememberSaveable { mutableStateOf(false) }
+    var authScreen by rememberSaveable { mutableStateOf(AuthScreen.LOGIN) }
 
-    if (isLoggedIn) {
-        MainScreen()
-    } else {
-        LoginScreen(
-            onLoginSuccess = {
-                isLoggedIn = true
-            }
-        )
+    when {
+        isLoggedIn -> {
+            MainScreen()
+        }
+
+        authScreen == AuthScreen.LOGIN -> {
+            LoginScreen(
+                onLoginSuccess = {
+                    isLoggedIn = true
+                },
+                onRegisterClick = {
+                    authScreen = AuthScreen.REGISTER
+                },
+                onForgotPasswordClick = {
+                    authScreen = AuthScreen.RESET_PASSWORD
+                }
+            )
+        }
+
+        authScreen == AuthScreen.REGISTER -> {
+            RegisterScreen(
+                onRegisterSuccess = {
+                    authScreen = AuthScreen.LOGIN
+                },
+                onBackToLogin = {
+                    authScreen = AuthScreen.LOGIN
+                }
+            )
+        }
+
+        authScreen == AuthScreen.RESET_PASSWORD -> {
+            ResetPasswordScreen(
+                onBackToLogin = {
+                    authScreen = AuthScreen.LOGIN
+                }
+            )
+        }
     }
 }
+
 
 enum class AppDestinations(
     val label: String,

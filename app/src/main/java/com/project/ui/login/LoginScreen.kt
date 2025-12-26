@@ -11,11 +11,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.lifecycle.viewmodel.compose.viewModel
+
+
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onRegisterClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
     var email by rememberSaveable { mutableStateOf("") }
@@ -51,7 +57,8 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { it -> email = it },
+                onValueChange = { it -> email = it
+            },
                 label = { Text("E-mail") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -94,6 +101,16 @@ fun LoginScreen(
                 }
 
                 else -> {}
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(onClick = onForgotPasswordClick) {
+                Text("Esqueci a senha")
+            }
+
+            TextButton(onClick = onRegisterClick) {
+                Text("Criar conta")
             }
         }
     }

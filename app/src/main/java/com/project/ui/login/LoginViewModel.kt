@@ -2,13 +2,15 @@ package com.project.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project.data.model.User
+import com.project.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
-    private val repository = AuthRepository()
+    private val repository = UserRepository()
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
@@ -17,11 +19,13 @@ class LoginViewModel : ViewModel() {
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
 
-            val success = repository.login(email, senha)
+            val user = User(
+                email = email,
+                senha = senha,
+            )
 
-            _loginState.value =
-                if (success) LoginState.Success
-                else LoginState.Error
+            repository.saveUser(user)
+
         }
     }
 }
