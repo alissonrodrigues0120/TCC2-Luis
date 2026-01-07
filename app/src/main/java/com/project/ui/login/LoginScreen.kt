@@ -24,6 +24,15 @@ fun LoginScreen(
     onForgotPasswordClick: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
+
+    // Verifica usuário autenticado
+    val currentUser = viewModel.checkCurrentUser()
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            onLoginSuccess()
+        }
+    }
+
     var email by rememberSaveable { mutableStateOf("") }
     var senha by rememberSaveable { mutableStateOf("") }
 
@@ -31,8 +40,8 @@ fun LoginScreen(
 
     // Observa o estado de login
     LaunchedEffect(loginState) {
-        if (loginState is LoginState.Success) {
-            onLoginSuccess()
+        if (loginState is LoginState.Error) {
+            viewModel.resetState()
         }
     }
 
@@ -90,8 +99,10 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             when (loginState) {
-                is LoginState.Loading -> {
-                    CircularProgressIndicator()
+                is LoginState.Success -> {
+                    email = ""
+                    senha = ""
+                    onLoginSuccess()
                 }
 
                 is LoginState.Error -> {
