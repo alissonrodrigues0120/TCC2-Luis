@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.project.di.ViewModelFactory
 import com.project.ui.home.AddPatientScreen
 import com.project.ui.home.HomeScreen
 import com.project.ui.home.HomeViewModel
@@ -69,7 +70,9 @@ fun MainScreen(
 
     // Estado compartilhado da lista de pacientes
     val patients = rememberSaveable { mutableStateListOf<Patient>() }
-    val homeViewModel: HomeViewModel = viewModel()
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = ViewModelFactory()
+    )
 
     // Carrega pacientes quando a tela é criada
     LaunchedEffect(Unit) {
