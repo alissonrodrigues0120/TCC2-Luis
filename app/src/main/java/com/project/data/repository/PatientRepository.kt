@@ -1,31 +1,65 @@
 package com.project.data.repository
 
+import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.toObject
+import com.project.data.model.User
 import com.project.data.model.Patient
 import kotlinx.coroutines.tasks.await
 
 class PatientRepository(private val userId: String) {
-    private val db = FirebaseFirestore.getInstance()
-    private val patientsCollection = db.collection("patients")
+
+    private val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance())
+
+    private val patientsCollection = db.collection("users").document(userId).collection("patients")
+
+
+
+
+
 
     // Obter pacientes do usuário atual
     suspend fun getPatients(): List<Patient> {
-        return try {
-            val query = patientsCollection.whereEqualTo("userId", userId)
-                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+        val query = patientsCollection
+            .orderBy("createdAt", Query.Direction.DESCENDING)
 
-            val documents = query.get().await().documents
-            documents.map { Patient.fromSnapshot(it) }
+        return try {
+            // 1️⃣ tenta pegar do cache
+            val cacheSnapshot = query
+                .get(Source.CACHE)
+                .await()
+
+            if (!cacheSnapshot.isEmpty) {
+                cacheSnapshot.documents.map {
+                    Patient.fromSnapshot(it)
+                }
+            } else {
+                throw Exception("Cache vazio")
+            }
         } catch (e: Exception) {
-            emptyList()
+            try {
+                // 2️⃣ fallback: servidor
+                val serverSnapshot = query
+                    .get(Source.SERVER)
+                    .await()
+
+                serverSnapshot.documents.map {
+                    Patient.fromSnapshot(it)
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
+
 
     // Adicionar novo paciente
     suspend fun addPatient(patient: Patient): String? {
         return try {
-            val newPatient = patient.copy(userId = userId)
+            val newPatient = patient
             val documentRef = patientsCollection.document()
             documentRef.set(newPatient.toMap()).await()
             documentRef.id
@@ -70,3 +104,4 @@ class PatientRepository(private val userId: String) {
         }
     }
 }
+

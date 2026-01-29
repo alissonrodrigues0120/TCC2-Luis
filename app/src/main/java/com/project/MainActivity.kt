@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +18,6 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +29,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.project.di.ViewModelFactory
 import com.project.ui.home.AddPatientScreen
 import com.project.ui.home.HomeScreen
@@ -41,15 +41,21 @@ import com.project.ui.login.LoginScreen
 import com.project.ui.login.RegisterScreen
 import com.project.ui.login.ResetPasswordScreen
 import com.project.ui.theme.TcctwoTheme
-import kotlin.properties.ReadOnlyProperty
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Inicializa Firebase
-        FirebaseApp.initializeApp(this)
+        val app = FirebaseApp.initializeApp(this)
+            ?: FirebaseApp.getInstance()
+
+        val settings = FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(true)
+            .build()
+
+        FirebaseFirestore.getInstance(app).firestoreSettings = settings
+
 
         setContent {
             TcctwoTheme {
@@ -122,9 +128,7 @@ fun MainScreen(
                             patients = patients,
                             onLogout = onLogout,
                             onAddPatient = { isAddingPatient = true },
-                            onImportCsv = {
-                                // Implementar lógica de importação
-                            },
+                            onImportCsv = {},
                             onEditPatient = { patient ->
                                 // Implementar edição
                             },
@@ -136,16 +140,7 @@ fun MainScreen(
                     }
                 }
 
-                AppDestinations.FAVORITES -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Seção de Favoritos em construção", style = MaterialTheme.typography.titleLarge)
-                    }
-                }
+
 
                 AppDestinations.PROFILE -> {
                     Box(
@@ -228,6 +223,5 @@ enum class AppDestinations(
     val icon: ImageVector,
 ) {
     HOME("Home", Icons.Default.Home),
-    FAVORITES("Favorites", Icons.Default.Favorite),
     PROFILE("Profile", Icons.Default.AccountBox),
 }

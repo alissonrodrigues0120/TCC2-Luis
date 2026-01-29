@@ -28,8 +28,7 @@ class HomeViewModel(repository: PatientRepository) : ViewModel() {
             try {
                 if (userId.isEmpty()) return@launch
 
-                val query = db.collection("patients")
-                    .whereEqualTo("userId", userId)
+                val query = db.collection("users").document(userId).collection("patients")
                     .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
 
                 val documents = query.get().await().documents
@@ -64,7 +63,7 @@ class HomeViewModel(repository: PatientRepository) : ViewModel() {
                     condition = patient.condition
                 )
 
-                db.collection("patients").document(patientId).set(
+                db.collection("users").document(userId).collection("patients").document(patientId).set(
                     mapOf(
                         "name" to newPatient.name,
                         "age" to newPatient.age,

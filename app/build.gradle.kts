@@ -44,6 +44,10 @@ android {
 }
 
 dependencies {
+    implementation("org.jetbrains:annotations:23.0.0")
+    configurations.all {
+        exclude(group = "com.intellij", module = "annotations")
+    }
     implementation("io.ktor:ktor-client-core:2.3.7")
     implementation("io.ktor:ktor-client-okhttp:2.3.7")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
@@ -66,6 +70,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

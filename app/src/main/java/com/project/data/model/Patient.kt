@@ -11,7 +11,8 @@ data class Patient(
     val condition: String = "Em tratamento",
     val observations: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val userId: String = ""
+    val userId: String = "",
+    val remoteLastUpdate: Long = System.currentTimeMillis()
 ) {
     // Converter para Map para o Firestore
     fun toMap(): Map<String, Any> {
@@ -22,7 +23,8 @@ data class Patient(
             "condition" to condition,
             "observations" to observations,
             "createdAt" to createdAt,
-            "userId" to userId
+            "userId" to userId,
+            "remoteLastUpdate" to remoteLastUpdate
         )
     }
 
@@ -37,7 +39,8 @@ data class Patient(
                 condition = snapshot.getString("condition") ?: "Em tratamento",
                 observations = snapshot.getString("observations") ?: "",
                 createdAt = snapshot.getLong("createdAt") ?: System.currentTimeMillis(),
-                userId = snapshot.getString("userId") ?: ""
+                userId = snapshot.getString("userId") ?: "",
+                remoteLastUpdate = snapshot.getLong("remoteLastUpdate") ?: System.currentTimeMillis()
             )
         }
     }
