@@ -36,17 +36,16 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,55 +53,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.project.data.model.Patient
 
-data class Patient(
-    val id: String,
-    val name: String,
-    val age: Int,
-    val gender: String,
-    val condition: String = "Em tratamento"
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     patients: List<Patient>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onEditPatient: () -> Unit,
     onLogout: () -> Unit,
     onAddPatient: () -> Unit,
     onImportCsv: () -> Unit,
-    onEditPatient: (Patient) -> Unit,
     onDeletePatient: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var patientToDeleteId by remember { mutableStateOf<String?>(null) }
+    var editingPatient : Patient? by remember { mutableStateOf(null) }
+
+
+    var viewModel : HomeViewModel = viewModel()
+
+
 
     val purple500 = Color(0xFFB39DDB)
     val purple700 = Color(0xFF512DA8)
-    val scope = rememberCoroutineScope()
-    var isRefreshing: Boolean by remember { mutableStateOf(false) }
+
     val pullRefreshState = rememberPullToRefreshState()
 
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pullToRefresh(
+                state = pullRefreshState,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh
+            )
+    ) {
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .pullToRefresh(
-            state = pullRefreshState,
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                scope.launch {
-                    isRefreshing = true
-                    delay(2000)
-                    isRefreshing = false
-                }
-            }
-        ))
-    {
-        // Lista de pacientes ou mensagem vazia
+        // 🔹 Lista de pacientes
         if (patients.isEmpty()) {
             EmptyPatientsList(onAddPatient = onAddPatient)
         } else {
@@ -113,14 +106,14 @@ fun HomeScreen(
                 items(patients, key = { it.id }) { patient ->
                     PatientItem(
                         patient = patient,
-                        onEdit = { onEditPatient(patient) },
+                        onEdit = { editingPatient = patient },
                         onDelete = { patientToDeleteId = patient.id }
                     )
                 }
             }
         }
 
-        // Menu expansível
+        // 🔹 Menu expansível
         AnimatedVisibility(
             visible = isMenuExpanded,
             enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
@@ -133,6 +126,7 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Bottom
             ) {
+
                 MenuButton(
                     icon = Icons.Default.ExitToApp,
                     text = "Desconectar",
@@ -142,7 +136,9 @@ fun HomeScreen(
                         showLogoutDialog = true
                     }
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 MenuButton(
                     icon = Icons.Default.Share,
                     text = "Importar CSV",
@@ -152,7 +148,9 @@ fun HomeScreen(
                         onImportCsv()
                     }
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 MenuButton(
                     icon = Icons.Default.Add,
                     text = "Adicionar",
@@ -162,18 +160,19 @@ fun HomeScreen(
                         onAddPatient()
                     }
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
+
                 FloatingActionButton(
                     onClick = { isMenuExpanded = false },
-                    containerColor = purple500,
-                    modifier = Modifier.align(Alignment.End)
+                    containerColor = purple500
                 ) {
                     Icon(Icons.Default.Close, contentDescription = "Fechar menu")
                 }
             }
         }
 
-        // Botão principal
+        // 🔹 FAB principal
         if (!isMenuExpanded) {
             FloatingActionButton(
                 onClick = { isMenuExpanded = true },
@@ -186,7 +185,7 @@ fun HomeScreen(
             }
         }
 
-        // Diálogos de confirmação
+        // 🔹 Dialog logout
         if (showLogoutDialog) {
             LogoutConfirmationDialog(
                 onConfirm = {
@@ -197,6 +196,20 @@ fun HomeScreen(
             )
         }
 
+        if (editingPatient != null) {
+            EditPatientDialog(
+                patient = editingPatient,
+                onDismiss = { editingPatient = null },
+                onSave = {
+                    viewModel.updatePatient(it)
+                    editingPatient = null
+                }
+            )
+        }
+
+
+
+        // 🔹 Dialog excluir paciente
         patientToDeleteId?.let { id ->
             val patient = patients.find { it.id == id }
             if (patient != null) {
@@ -210,15 +223,68 @@ fun HomeScreen(
                 )
             }
         }
-
-        PullToRefreshContainer(
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }
 
 
+@Composable
+fun EditPatientDialog(
+    patient: Patient?,
+    onDismiss: () -> Unit,
+    onSave: (Patient) -> Unit
+) {
+    var name by remember { mutableStateOf(patient?.name) }
+    var age by remember { mutableStateOf(patient?.age.toString()) }
+    var condition by remember { mutableStateOf(patient?.condition) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                patient?.let {
+                    onSave(
+                        it.copy(
+                            name = name.toString(),
+                            age = age.toIntOrNull() ?: it.age,
+                            condition = condition.toString()
+                        )
+                    )
+                }
+            }) {
+                Text("Salvar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        },
+        title = {
+            Text("Editar paciente")
+        },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name.toString(),
+                    onValueChange = { name = it },
+                    label = { Text("Nome") }
+                )
+
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { age = it },
+                    label = { Text("Idade") }
+                )
+
+                OutlinedTextField(
+                    value = condition.toString(),
+                    onValueChange = { condition = it },
+                    label = { Text("Condição") }
+                )
+            }
+        }
+    )
+}
 
 
 @Composable

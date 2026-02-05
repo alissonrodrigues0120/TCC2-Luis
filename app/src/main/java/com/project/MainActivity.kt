@@ -19,23 +19,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode.Companion.Screen
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.project.data.model.Patient
 import com.project.di.ViewModelFactory
 import com.project.ui.home.AddPatientScreen
 import com.project.ui.home.HomeScreen
 import com.project.ui.home.HomeViewModel
-import com.project.ui.home.Patient
 import com.project.ui.login.AuthScreen
 import com.project.ui.login.LoginScreen
 import com.project.ui.login.RegisterScreen
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 fun MainScreen(
     onLogout: () -> Unit
@@ -73,24 +75,14 @@ fun MainScreen(
         mutableStateOf(AppDestinations.HOME)
     }
     var isAddingPatient by rememberSaveable { mutableStateOf(false) }
+    var isEditingPatient by rememberSaveable { mutableStateOf(false) }
 
-    // Estado compartilhado da lista de pacientes
-    val patients = rememberSaveable { mutableStateListOf<Patient>() }
+
     val homeViewModel: HomeViewModel = viewModel(
         factory = ViewModelFactory()
     )
 
-    // Carrega pacientes quando a tela é criada
-    LaunchedEffect(Unit) {
-        homeViewModel.loadPatients()
-    }
-
-
-    val patientsState by homeViewModel.patients.collectAsState()
-    LaunchedEffect(patientsState) {
-        patients.clear()
-        patients.addAll(patientsState)
-    }
+    val state by homeViewModel.screenState.collectAsState()
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -101,21 +93,22 @@ fun MainScreen(
                     selected = it == currentDestination,
                     onClick = {
                         currentDestination = it
-                        isAddingPatient = false // Fecha formulário ao trocar aba
+                        isAddingPatient = false
+                        isEditingPatient = false
                     }
                 )
+
+
             }
         }
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            // Navegação entre telas principais
             when (currentDestination) {
                 AppDestinations.HOME -> {
                     if (isAddingPatient) {
-                        // Formulário de adição de paciente
                         AddPatientScreen(
                             onBack = { isAddingPatient = false },
-                            onSave = { newPatient ->
+                            onSave = { newPatient : Patient->
                                 homeViewModel.addPatient(newPatient) {
                                     isAddingPatient = false
                                 }
@@ -123,24 +116,19 @@ fun MainScreen(
                             modifier = Modifier.padding(innerPadding)
                         )
                     } else {
-                        // HomeScreen principal
                         HomeScreen(
-                            patients = patients,
+                            patients = state.patients,
+                            isRefreshing = state.isRefreshing,
+                            onRefresh = { homeViewModel.refresh() },
                             onLogout = onLogout,
                             onAddPatient = { isAddingPatient = true },
+                            onEditPatient = { isEditingPatient = true },
                             onImportCsv = {},
-                            onEditPatient = { patient ->
-                                // Implementar edição
-                            },
-                            onDeletePatient = { patientId ->
-                                homeViewModel.deletePatient(patientId)
-                            },
+                            onDeletePatient = { homeViewModel.deletePatient(it) },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
                 }
-
-
 
                 AppDestinations.PROFILE -> {
                     Box(
@@ -149,13 +137,17 @@ fun MainScreen(
                             .padding(innerPadding),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Seção de Perfil em construção", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Seção de Perfil em construção",
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     }
                 }
             }
         }
     }
 }
+
 
 
 

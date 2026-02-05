@@ -2,12 +2,11 @@ package com.project.data.repository
 
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.Source
-import com.google.firebase.firestore.toObject
-import com.project.data.model.User
 import com.project.data.model.Patient
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class PatientRepository(private val userId: String) {
@@ -17,43 +16,29 @@ class PatientRepository(private val userId: String) {
     private val patientsCollection = db.collection("users").document(userId).collection("patients")
 
 
-
-
-
-
     // Obter pacientes do usuário atual
-    suspend fun getPatients(): List<Patient> {
+    fun getPatients(): Flow<List<Patient>> = callbackFlow {
         val query = patientsCollection
             .orderBy("createdAt", Query.Direction.DESCENDING)
 
-        return try {
-            // 1️⃣ tenta pegar do cache
-            val cacheSnapshot = query
-                .get(Source.CACHE)
-                .await()
-
-            if (!cacheSnapshot.isEmpty) {
-                cacheSnapshot.documents.map {
-                    Patient.fromSnapshot(it)
-                }
-            } else {
-                throw Exception("Cache vazio")
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(emptyList())
+                return@addSnapshotListener
             }
-        } catch (e: Exception) {
-            try {
-                // 2️⃣ fallback: servidor
-                val serverSnapshot = query
-                    .get(Source.SERVER)
-                    .await()
 
-                serverSnapshot.documents.map {
-                    Patient.fromSnapshot(it)
-                }
-            } catch (e: Exception) {
-                emptyList()
+            snapshot?.let {
+                trySend(
+                    it.documents.map { doc ->
+                        Patient.fromSnapshot(doc)
+                    }
+                )
             }
         }
+
+        awaitClose { listener.remove() }
     }
+
 
 
     // Adicionar novo paciente
