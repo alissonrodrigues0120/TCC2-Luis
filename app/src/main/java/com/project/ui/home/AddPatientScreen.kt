@@ -1,5 +1,7 @@
 package com.project.ui.home
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -23,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,10 +35,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.project.data.model.Patient
 import java.util.UUID
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +57,8 @@ fun AddPatientScreen(
     var observations by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf(false) }
     var ageError by remember { mutableStateOf(false) }
+    var DialogSave by remember { mutableStateOf(false)}
+
 
     Scaffold(
         topBar = {
@@ -171,7 +181,11 @@ fun AddPatientScreen(
                                     condition = "Em tratamento"
                                 )
                             )
+
+                           DialogSave = true
                         }
+
+
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,6 +193,10 @@ fun AddPatientScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
                 ) {
                     Text("Salvar", color = Color.White)
+                }
+
+                if(DialogSave){
+                   ShowSavePatientToast(message = "Paciente salvo com sucesso!", context = LocalContext.current)
                 }
             }
         }
@@ -207,6 +225,15 @@ private fun getAgeErrorMessage(age: String): String? {
     }
 }
 
+
+
+@Composable
+private fun ShowSavePatientToast(
+    message: String,
+    context: Context
+) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenderDropdown(

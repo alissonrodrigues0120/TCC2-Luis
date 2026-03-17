@@ -18,6 +18,7 @@ data class HomeScreenPatients(
     val isRefreshing: Boolean = false
 )
 
+
 class HomeViewModel(
     private val repository: PatientRepository
 ) : ViewModel() {

@@ -7,84 +7,114 @@ import com.project.data.model.Patient
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 
 class PatientRepository(private val userId: String) {
 
     private val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance())
 
-    private val patientsCollection = db.collection("users").document(userId).collection("patients")
+    // ✅ Helper para validar o userId antes de usar
+    private val isValidUserId: Boolean
+        get() = userId.isNotBlank()
 
-
-    // Obter pacientes do usuário atual
-    fun getPatients(): Flow<List<Patient>> = callbackFlow {
-        val query = patientsCollection
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-
-        val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                trySend(emptyList())
-                return@addSnapshotListener
-            }
-
-            snapshot?.let {
-                trySend(
-                    it.documents.map { doc ->
-                        Patient.fromSnapshot(doc)
-                    }
-                )
-            }
+    // ✅ patientsCollection só é criado se userId for válido
+    private val patientsCollection
+        get() = if (isValidUserId) {
+            db.collection("users").document(userId).collection("patients")
+        } else {
+            null
         }
 
-        awaitClose { listener.remove() }
+    // ✅ Obter pacientes do usuário atual
+    fun getPatients(): Flow<List<Patient>> = if (!isValidUserId) {
+        // Se não tem userId válido, emite lista vazia imediatamente
+        flowOf(emptyList())
+    } else {
+        callbackFlow {
+            val query = patientsCollection!!
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+
+            val listener = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let {
+                    trySend(
+                        it.documents.mapNotNull { doc ->
+                            Patient.fromSnapshot(doc)
+                        }
+                    )
+                }
+            }
+
+            awaitClose { listener.remove() }
+        }
     }
 
-
-
-    // Adicionar novo paciente
+    // ✅ Adicionar novo paciente
     suspend fun addPatient(patient: Patient): String? {
+        if (!isValidUserId) return null
+
         return try {
-            val newPatient = patient
-            val documentRef = patientsCollection.document()
-            documentRef.set(newPatient.toMap()).await()
+            val collection = patientsCollection ?: return null
+            val documentRef = collection.document()
+            val patientWithId = patient.copy(userId = userId, id = documentRef.id)
+            documentRef.set(patientWithId.toMap()).await()
             documentRef.id
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }
 
-    // Atualizar paciente
+    // ✅ Atualizar paciente
     suspend fun updatePatient(patient: Patient): Boolean {
+        if (!isValidUserId || patient.id.isBlank()) return false
+
         return try {
-            val documentRef = patientsCollection.document(patient.id)
+            val collection = patientsCollection ?: return false
+            val documentRef = collection.document(patient.id)
             documentRef.update(patient.toMap()).await()
             true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
 
-    // Excluir paciente
+    // ✅ Excluir paciente
     suspend fun deletePatient(patientId: String): Boolean {
+        if (!isValidUserId || patientId.isBlank()) return false
+
         return try {
-            patientsCollection.document(patientId).delete().await()
+            val collection = patientsCollection ?: return false
+            collection.document(patientId).delete().await()
             true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
 
-    // Importar pacientes de CSV (exemplo simplificado)
+    // ✅ Importar pacientes de CSV
     suspend fun importPatientsFromCsv(patients: List<Patient>): Boolean {
+        if (!isValidUserId) return false
+
         return try {
+            val collection = patientsCollection ?: return false
             val batch = db.batch()
             patients.forEach { patient ->
-                val docRef = patientsCollection.document()
-                batch.set(docRef, patient.copy(userId = userId, id = docRef.id).toMap())
+                val docRef = collection.document()
+                val patientWithId = patient.copy(userId = userId, id = docRef.id)
+                batch.set(docRef, patientWithId.toMap())
             }
             batch.commit().await()
             true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }

@@ -44,6 +44,9 @@ android {
 }
 
 dependencies {
+    val nav_version = "2.9.7"
+
+    implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("org.jetbrains:annotations:23.0.0")
     configurations.all {
         exclude(group = "com.intellij", module = "annotations")

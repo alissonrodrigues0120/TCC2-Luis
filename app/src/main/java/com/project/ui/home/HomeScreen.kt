@@ -60,6 +60,7 @@ import com.project.data.model.Patient
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    homeViewModel: HomeViewModel,
     patients: List<Patient>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
@@ -76,7 +77,8 @@ fun HomeScreen(
     var editingPatient : Patient? by remember { mutableStateOf(null) }
 
 
-    var viewModel : HomeViewModel = viewModel()
+
+
 
 
 
@@ -201,7 +203,7 @@ fun HomeScreen(
                 patient = editingPatient,
                 onDismiss = { editingPatient = null },
                 onSave = {
-                    viewModel.updatePatient(it)
+                    homeViewModel.updatePatient(it)
                     editingPatient = null
                 }
             )
