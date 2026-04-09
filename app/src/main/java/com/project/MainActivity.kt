@@ -10,12 +10,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
@@ -23,31 +30,35 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.project.data.repository.PatientRepository
 import com.project.ui.home.AddPatientScreen
+import com.project.ui.home.AddNetworkScreen
+import com.project.ui.home.EcomapaFormScreen
+import com.project.ui.home.EcomapaViewScreen
+import com.project.ui.home.EcomapaViewModel
+import com.project.ui.home.EcomapaViewModelFactory
 import com.project.ui.home.HomeScreen
 import com.project.ui.home.HomeViewModel
 import com.project.ui.home.HomeViewModelFactory
+import com.project.ui.home.PatientProfileScreen
+import com.project.data.repository.EcomapaRepository
 import com.project.ui.login.AuthScreen
 import com.project.ui.login.LoginScreen
 import com.project.ui.login.RegisterScreen
 import com.project.ui.login.ResetPasswordScreen
 import com.project.ui.theme.TcctwoTheme
 
+// Global CompositionLocals for Theme Toggling across all screens
+val LocalThemeToggle = staticCompositionLocalOf<() -> Unit> { {} }
+val LocalIsDarkTheme = staticCompositionLocalOf<Boolean> { false }
+
 class MainActivity : ComponentActivity() {
-
-    private val viewModelFactory: ViewModelProvider.Factory by lazy {
-        // ✅ Obtém o UID do usuário logado
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-
-        // ✅ Se não estiver logado, o Repository vai lidar com isso gracefully
-        val repository = PatientRepository(userId)
-        HomeViewModelFactory(repository)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,10 +72,11 @@ class MainActivity : ComponentActivity() {
 
         FirebaseFirestore.getInstance().firestoreSettings = settings
 
+        val action = intent.action
+        val dataUri = if (android.content.Intent.ACTION_VIEW == action) intent.data else null
+
         setContent {
-            TcctwoTheme {
-                TcctwoApp(viewModelFactory = viewModelFactory)
-            }
+            TcctwoApp(initialPendingUri = dataUri)
         }
     }
 }
@@ -72,6 +84,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     homeViewModel: HomeViewModel,
+    ecomapaViewModel: EcomapaViewModel,
     modifier: Modifier = Modifier,
     onLogout: () -> Unit
 ) {
@@ -100,6 +113,9 @@ fun MainScreen(
                     },
                     onDeletePatient = { patientId ->
                         homeViewModel.deletePatient(patientId)
+                    },
+                    onPatientClick = { patientId ->
+                        navController.navigate(AppDestinations.PATIENT_PROFILE.route.replace("{patientId}", patientId))
                     }
                 )
             }
@@ -126,18 +142,121 @@ fun MainScreen(
                     Text("Perfil em construção")
                 }
             }
+
+            composable(
+                route = AppDestinations.PATIENT_PROFILE.route,
+                arguments = listOf(navArgument("patientId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                PatientProfileScreen(
+                    patientId = patientId,
+                    homeViewModel = homeViewModel,
+                    onBack = { navController.popBackStack() },
+                    onCreateEcomapa = {
+                        ecomapaViewModel.createEcomapa(patientId) { ecomapaId ->
+                            navController.navigate(AppDestinations.ECOMAPA_FORM.route
+                                .replace("{patientId}", patientId)
+                                .replace("{ecomapaId}", ecomapaId))
+                        }
+                    },
+                    onOpenEcomapa = { ecomapaId ->
+                        navController.navigate(AppDestinations.ECOMAPA_FORM.route
+                            .replace("{patientId}", patientId)
+                            .replace("{ecomapaId}", ecomapaId))
+                    },
+                    onOpenEcomapaView = { ecomapaId ->
+                        navController.navigate(AppDestinations.ECOMAPA_VIEW.route
+                            .replace("{patientId}", patientId)
+                            .replace("{ecomapaId}", ecomapaId))
+                    },
+                    ecomapaViewModel = ecomapaViewModel
+                )
+            }
+
+            composable(
+                route = AppDestinations.ECOMAPA_FORM.route,
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("ecomapaId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val ecomapaId = backStackEntry.arguments?.getString("ecomapaId") ?: return@composable
+                EcomapaFormScreen(
+                    patientId = patientId,
+                    ecomapaId = ecomapaId,
+                    viewModel = ecomapaViewModel,
+                    onBack = { navController.popBackStack() },
+                    onAddInstitution = {
+                        navController.navigate(AppDestinations.ADD_NETWORK.route
+                            .replace("{patientId}", patientId)
+                            .replace("{ecomapaId}", ecomapaId))
+                    },
+                    onEditInstitution = { networkId ->
+                        navController.navigate(AppDestinations.ADD_NETWORK.route
+                            .replace("{patientId}", patientId)
+                            .replace("{ecomapaId}", ecomapaId) + "?networkId=$networkId")
+                    }
+                )
+            }
+
+            composable(
+                route = AppDestinations.ADD_NETWORK.route + "?networkId={networkId}",
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("ecomapaId") { type = NavType.StringType },
+                    navArgument("networkId") { 
+                        type = NavType.StringType 
+                        nullable = true 
+                        defaultValue = null 
+                    }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val ecomapaId = backStackEntry.arguments?.getString("ecomapaId") ?: return@composable
+                val networkId = backStackEntry.arguments?.getString("networkId")
+                AddNetworkScreen(
+                    patientId = patientId,
+                    ecomapaId = ecomapaId,
+                    networkId = networkId,
+                    viewModel = ecomapaViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = AppDestinations.ECOMAPA_VIEW.route,
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("ecomapaId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val ecomapaId = backStackEntry.arguments?.getString("ecomapaId") ?: return@composable
+                EcomapaViewScreen(
+                    patientId = patientId,
+                    ecomapaId = ecomapaId,
+                    viewModel = ecomapaViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun TcctwoApp(
-    viewModelFactory: ViewModelProvider.Factory,
-    modifier: Modifier = Modifier
-) {
-    var isLoggedIn by rememberSaveable {
-        mutableStateOf(FirebaseAuth.getInstance().currentUser != null)
-    }
+fun TcctwoApp(modifier: Modifier = Modifier, initialPendingUri: android.net.Uri? = null) {
+    var isDarkTheme by rememberSaveable { mutableStateOf(false) }
+    var pendingUri by rememberSaveable { mutableStateOf(initialPendingUri?.toString()) }
+
+    TcctwoTheme(darkTheme = isDarkTheme) {
+        CompositionLocalProvider(
+            LocalThemeToggle provides { isDarkTheme = !isDarkTheme },
+            LocalIsDarkTheme provides isDarkTheme
+        ) {
+            var isLoggedIn by rememberSaveable {
+                mutableStateOf(FirebaseAuth.getInstance().currentUser != null)
+            }
 
     var authScreen by rememberSaveable {
         mutableStateOf(AuthScreen.LOGIN)
@@ -145,10 +264,62 @@ fun TcctwoApp(
 
     when {
         isLoggedIn -> {
-            val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
+            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            val homeRepository = PatientRepository(userId)
+            val homeViewModel: HomeViewModel = viewModel(
+                key = "home_$userId", 
+                factory = HomeViewModelFactory(homeRepository)
+            )
+            
+            val ecomapaRepository = EcomapaRepository(userId)
+            val ecomapaViewModel: EcomapaViewModel = viewModel(
+                key = "ecomapa_$userId",
+                factory = EcomapaViewModelFactory(ecomapaRepository)
+            )
+
+            var showImportDialog by remember { mutableStateOf(pendingUri != null) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
+
+            if (showImportDialog && pendingUri != null) {
+                AlertDialog(
+                    onDismissRequest = { 
+                        showImportDialog = false
+                        pendingUri = null
+                    },
+                    title = { Text("Importar Perfil do Paciente") },
+                    text = { Text("Detectamos um arquivo do TCC2 externo (Ecomapas e Redes). Deseja importá-lo para a sua conta do Firebase?") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            coroutineScope.launch {
+                                val syncManager = com.project.data.repository.DataSyncManager(context)
+                                val success = syncManager.importPatientData(android.net.Uri.parse(pendingUri), userId) { msg ->
+                                    // Placeholder for progress 
+                                }
+                                if (success) {
+                                    homeViewModel.refresh()
+                                }
+                                showImportDialog = false
+                                pendingUri = null
+                            }
+                        }) {
+                            Text("Confirmar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { 
+                            showImportDialog = false
+                            pendingUri = null
+                        }) {
+                            Text("Ignorar")
+                        }
+                    }
+                )
+            }
 
             MainScreen(
                 homeViewModel = homeViewModel,
+                ecomapaViewModel = ecomapaViewModel,
                 onLogout = {
                     FirebaseAuth.getInstance().signOut()
                     isLoggedIn = false
@@ -191,10 +362,16 @@ fun TcctwoApp(
             )
         }
     }
+    } // Close CompositionLocalProvider
+    } // Close TcctwoTheme
 }
 
 sealed class AppDestinations(val route: String) {
     object HOME : AppDestinations("home")
     object ADD_PATIENT : AppDestinations("add_patient")
     object PROFILE : AppDestinations("profile")
+    object PATIENT_PROFILE : AppDestinations("patient_profile/{patientId}")
+    object ECOMAPA_FORM : AppDestinations("ecomapa_form/{patientId}/{ecomapaId}")
+    object ADD_NETWORK : AppDestinations("add_network/{patientId}/{ecomapaId}")
+    object ECOMAPA_VIEW : AppDestinations("ecomapa_view/{patientId}/{ecomapaId}")
 }

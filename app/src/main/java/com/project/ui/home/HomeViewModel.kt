@@ -73,4 +73,8 @@ class HomeViewModel(
             repository.deletePatient(patientId)
         }
     }
+
+    fun getPatientById(patientId: String): Patient? {
+        return screenState.value.patients.find { it.id == patientId }
+    }
 }

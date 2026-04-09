@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -40,6 +41,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -69,6 +74,7 @@ fun HomeScreen(
     onAddPatient: () -> Unit,
     onImportCsv: () -> Unit,
     onDeletePatient: (String) -> Unit,
+    onPatientClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -87,15 +93,35 @@ fun HomeScreen(
 
     val pullRefreshState = rememberPullToRefreshState()
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pullToRefresh(
-                state = pullRefreshState,
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Meus Pacientes", fontWeight = FontWeight.Bold) },
+                actions = {
+                    val toggle = com.project.LocalThemeToggle.current
+                    val isDark = com.project.LocalIsDarkTheme.current
+                    Switch(
+                        checked = isDark,
+                        onCheckedChange = { toggle() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
-    ) {
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .pullToRefresh(
+                    state = pullRefreshState,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh
+                )
+        ) {
 
         // 🔹 Lista de pacientes
         if (patients.isEmpty()) {
@@ -109,7 +135,8 @@ fun HomeScreen(
                     PatientItem(
                         patient = patient,
                         onEdit = { editingPatient = patient },
-                        onDelete = { patientToDeleteId = patient.id }
+                        onDelete = { patientToDeleteId = patient.id },
+                        onClick = { onPatientClick(patient.id) }
                     )
                 }
             }
@@ -226,6 +253,7 @@ fun HomeScreen(
             }
         }
     }
+    }
 }
 
 
@@ -336,12 +364,14 @@ private fun PatientItem(
     patient: Patient,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
