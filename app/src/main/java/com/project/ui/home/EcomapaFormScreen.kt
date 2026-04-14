@@ -8,11 +8,16 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import java.text.SimpleDateFormat
@@ -34,6 +39,8 @@ fun EcomapaFormScreen(
     onEditInstitution: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isMenuExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,6 +54,45 @@ fun EcomapaFormScreen(
                     containerColor = Color.Transparent
                 )
             )
+        },
+        floatingActionButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isMenuExpanded,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(expandFrom = Alignment.Bottom),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Bottom)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Button(
+                            onClick = { isMenuExpanded = false; onAddInstitution() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                        ) {
+                            Text("Adicionar Instituição", color = Color.White)
+                        }
+                        Button(
+                            onClick = { isMenuExpanded = false; onBack() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                        ) {
+                            Text("Salvar Ecomapa", color = Color.White)
+                        }
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { isMenuExpanded = !isMenuExpanded },
+                    containerColor = Color(0xFF512DA8),
+                    contentColor = Color.White
+                ) {
+                    Icon(
+                        imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "Menu"
+                    )
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -100,38 +146,8 @@ fun EcomapaFormScreen(
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
             
-            // Preenche o espaco pra jogar os botoes pro final da tela
+            // Preenche o espaco
             Spacer(modifier = Modifier.weight(1f))
-
-            // Bottom Buttons
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(
-                    onClick = onAddInstitution,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC4C4C4)),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text("ADICIONAR INSTITUIÇÃO", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF67E34D)), // Green color matching screenshot
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text("SALVAR ECOMAPA E VOLTAR", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
         }
     }
 }

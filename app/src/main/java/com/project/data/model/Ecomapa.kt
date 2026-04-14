@@ -10,6 +10,7 @@ data class Ecomapa(
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(
+            "id" to id,
             "patientId" to patientId,
             "createdAt" to createdAt
         )

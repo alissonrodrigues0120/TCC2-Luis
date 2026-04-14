@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -170,7 +172,7 @@ fun HomeScreen(
 
                 MenuButton(
                     icon = Icons.Default.Share,
-                    text = "Importar CSV",
+                    text = "Importar Paciente",
                     backgroundColor = purple500,
                     onClick = {
                         isMenuExpanded = false
@@ -263,9 +265,10 @@ fun EditPatientDialog(
     onDismiss: () -> Unit,
     onSave: (Patient) -> Unit
 ) {
-    var name by remember { mutableStateOf(patient?.name) }
-    var age by remember { mutableStateOf(patient?.age.toString()) }
-    var condition by remember { mutableStateOf(patient?.condition) }
+    var name by remember { mutableStateOf(patient?.name ?: "") }
+    var age by remember { mutableStateOf(patient?.age?.toString() ?: "") }
+    var gender by remember { mutableStateOf(patient?.gender ?: "Masculino") }
+    var condition by remember { mutableStateOf(patient?.condition ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -274,9 +277,10 @@ fun EditPatientDialog(
                 patient?.let {
                     onSave(
                         it.copy(
-                            name = name.toString(),
+                            name = name,
                             age = age.toIntOrNull() ?: it.age,
-                            condition = condition.toString()
+                            gender = gender,
+                            condition = condition
                         )
                     )
                 }
@@ -303,7 +307,14 @@ fun EditPatientDialog(
                 OutlinedTextField(
                     value = age,
                     onValueChange = { age = it },
-                    label = { Text("Idade") }
+                    label = { Text("Idade") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
+                GenderDropdown(
+                    selectedGender = gender,
+                    onGenderSelected = { gender = it },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
 
                 OutlinedTextField(

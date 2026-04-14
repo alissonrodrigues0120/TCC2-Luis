@@ -28,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
@@ -90,6 +93,26 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     val state by homeViewModel.screenState.collectAsState()
+    
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            coroutineScope.launch {
+                val syncManager = com.project.data.repository.DataSyncManager(context)
+                val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                if (userId.isNotEmpty()) {
+                    val success = syncManager.importPatientData(it, userId) { }
+                    if (success) {
+                        homeViewModel.refresh()
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(modifier = modifier) { innerPadding ->
         NavHost(
@@ -109,7 +132,7 @@ fun MainScreen(
                     },
                     onEditPatient = {},
                     onImportCsv = {
-                        // Implementar importação CSV se necessário
+                        filePickerLauncher.launch(arrayOf("*/*"))
                     },
                     onDeletePatient = { patientId ->
                         homeViewModel.deletePatient(patientId)
