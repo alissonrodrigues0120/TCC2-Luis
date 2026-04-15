@@ -92,6 +92,7 @@ fun EcomapaViewScreen(
     var showOptionsDialog by remember { mutableStateOf(false) }
     var showNetworkFormDialog by remember { mutableStateOf(false) }
     var networkToEdit by remember { mutableStateOf<SupportNetwork?>(null) }
+    var networkToDelete by remember { mutableStateOf<SupportNetwork?>(null) }
 
     val nodePositions = remember { mutableStateMapOf<String, Offset>() }
     var scale by remember { mutableStateOf(1f) }
@@ -281,9 +282,33 @@ fun EcomapaViewScreen(
             showNetworkFormDialog = true
         },
         onDelete = {
-            viewModel.deleteSupportNetwork(patientId, ecomapaId, selectedNetwork!!.id)
+            networkToDelete = selectedNetwork
             showOptionsDialog = false
-            Toast.makeText(context, "Rede removida", Toast.LENGTH_SHORT).show()
+        }
+    )
+}
+
+if (networkToDelete != null) {
+    AlertDialog(
+        onDismissRequest = { networkToDelete = null },
+        title = { Text("Excluir rede de apoio") },
+        text = { Text("Tem certeza que deseja excluir a rede '${networkToDelete!!.name}'?") },
+        confirmButton = {
+            Button(
+                onClick = {
+                    viewModel.deleteSupportNetwork(patientId, ecomapaId, networkToDelete!!.id)
+                    networkToDelete = null
+                    Toast.makeText(context, "Rede removida", Toast.LENGTH_SHORT).show()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+            ) {
+                Text("Excluir")
+            }
+        },
+        dismissButton = {
+            Button(onClick = { networkToDelete = null }) {
+                Text("Cancelar")
+            }
         }
     )
 }
@@ -295,8 +320,8 @@ if (showNetworkFormDialog) {
         existingNetwork = networkToEdit,
         onDismiss = { showNetworkFormDialog = false },
         onSave = { updatedNetwork ->
+            showNetworkFormDialog = false // Fechar visualmente de imediato
             viewModel.addSupportNetwork(patientId, ecomapaId, updatedNetwork) {
-                showNetworkFormDialog = false
                 Toast.makeText(context, "Rede atualizada!", Toast.LENGTH_SHORT).show()
             }
         }

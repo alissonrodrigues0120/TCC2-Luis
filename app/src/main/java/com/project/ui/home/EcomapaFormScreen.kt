@@ -40,6 +40,7 @@ fun EcomapaFormScreen(
     modifier: Modifier = Modifier
 ) {
     var isMenuExpanded by remember { mutableStateOf(false) }
+    var networkToDelete by remember { mutableStateOf<com.project.data.model.SupportNetwork?>(null) }
 
     Scaffold(
         topBar = {
@@ -138,9 +139,33 @@ fun EcomapaFormScreen(
                         title = network.name.ifBlank { "Instituição" }, 
                         date = dateString,
                         onEdit = { onEditInstitution(network.id) },
-                        onDelete = { viewModel.deleteSupportNetwork(patientId, ecomapaId, network.id) }
+                        onDelete = { networkToDelete = network }
                     )
                 }
+            }
+
+            if (networkToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { networkToDelete = null },
+                    title = { Text("Excluir rede de apoio") },
+                    text = { Text("Tem certeza que deseja excluir a rede '${networkToDelete!!.name}'?") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.deleteSupportNetwork(patientId, ecomapaId, networkToDelete!!.id)
+                                networkToDelete = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                        ) {
+                            Text("Excluir")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { networkToDelete = null }) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -58,6 +58,7 @@ fun PatientProfileScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
+    var ecomapaToDelete by remember { mutableStateOf<String?>(null) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -92,6 +93,30 @@ fun PatientProfileScreen(
                 onBack() // Volta pra home após deletar
             },
             onDismiss = { showDeleteDialog = false }
+        )
+    }
+
+    if (ecomapaToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { ecomapaToDelete = null },
+            title = { Text("Excluir Ecomapa") },
+            text = { Text("Tem certeza que deseja excluir permanentemente este ecomapa e todas as suas redes de apoio associadas?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        ecomapaViewModel.deleteEcomapa(patientId, ecomapaToDelete!!)
+                        ecomapaToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                ) {
+                    Text("Excluir")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { ecomapaToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
@@ -256,7 +281,7 @@ fun PatientProfileScreen(
                         date = dateString,
                         onView = { onOpenEcomapaView(ecomapa.id) },
                         onEdit = { onOpenEcomapa(ecomapa.id) },
-                        onDelete = { ecomapaViewModel.deleteEcomapa(patientId, ecomapa.id) }
+                        onDelete = { ecomapaToDelete = ecomapa.id }
                     )
                 }
             }

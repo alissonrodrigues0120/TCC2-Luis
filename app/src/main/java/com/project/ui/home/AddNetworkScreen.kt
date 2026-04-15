@@ -223,8 +223,8 @@ fun AddNetworkScreen(
                     )
                     viewModel.addSupportNetwork(patientId, ecomapaId, network) {
                         Toast.makeText(context, "Rede de apoio salva com sucesso!", Toast.LENGTH_SHORT).show()
-                        onBack()
                     }
+                    onBack() // Retornar visualmente de imediato
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
                 shape = RoundedCornerShape(8.dp),
