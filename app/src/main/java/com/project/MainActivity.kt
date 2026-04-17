@@ -125,6 +125,7 @@ fun MainScreen(
                     homeViewModel = homeViewModel,
                     patients = state.patients,
                     isRefreshing = state.isRefreshing,
+                    isLoading = state.isLoading,
                     onRefresh = { homeViewModel.refresh() },
                     onLogout = onLogout,
                     onAddPatient = {

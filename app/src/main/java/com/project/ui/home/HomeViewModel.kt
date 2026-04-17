@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
 
 data class HomeScreenPatients(
     val patients: List<Patient> = listOf(),
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val isLoading: Boolean = true
 )
 
 
@@ -32,7 +33,8 @@ class HomeViewModel(
             .combine(_isRefreshing) { patients, refreshing ->
                 HomeScreenPatients(
                     patients = patients,
-                    isRefreshing = refreshing
+                    isRefreshing = refreshing,
+                    isLoading = false
                 )
             }
             .stateIn(

@@ -19,8 +19,15 @@ class LoginViewModel : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
+    
+    private var failedAttempts = 0
 
     fun login(email: String, senha: String) {
+        if (failedAttempts >= 3) {
+            _loginState.value = LoginState.TooManyFailures("Muitas tentativas falhas. Redefina sua senha ou tente novamente mais tarde.")
+            return
+        }
+        
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
 
@@ -29,6 +36,7 @@ class LoginViewModel : ViewModel() {
                 val result = auth.signInWithEmailAndPassword(email.trim(), senha.trim()).await()
 
                 if (result.user != null) {
+                    failedAttempts = 0
                     _loginState.value = LoginState.Success(result.user!!.uid)
                 } else {
                     _loginState.value = LoginState.Error("Falha na autenticação")
@@ -46,7 +54,16 @@ class LoginViewModel : ViewModel() {
                     else ->
                         "Erro ao fazer login: ${e.message}"
                 }
-                _loginState.value = LoginState.Error(errorMessage)
+                
+                if (e is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException || e.message?.contains("wrong password") == true) {
+                    failedAttempts++
+                }
+                
+                if (failedAttempts >= 3) {
+                    _loginState.value = LoginState.TooManyFailures("Aviso: Falhas consecutivas de login detectadas. Confirme sua senha.")
+                } else {
+                    _loginState.value = LoginState.Error(errorMessage)
+                }
             }
         }
     }
@@ -66,6 +83,7 @@ sealed class LoginState {
     object Loading : LoginState()
     data class Success(val userId: String) : LoginState()
     data class Error(val message: String) : LoginState()
+    data class TooManyFailures(val message: String) : LoginState()
 }
 
 // Extensão para Firebase Tasks (adicione em um arquivo separado se preferir)

@@ -40,12 +40,8 @@ fun LoginScreen(
 
     val loginState by viewModel.loginState.collectAsState()
 
-    // Observa o estado de login
-    LaunchedEffect(loginState) {
-        if (loginState is LoginState.Error) {
-            viewModel.resetState()
-        }
-    }
+    // Removendo Reset Imediato de Estado
+    // LaunchedEffect(loginState) foi retirado para a mensagem de erro ficar na tela
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -109,13 +105,29 @@ fun LoginScreen(
                 is LoginState.Success -> {
                     email = ""
                     senha = ""
+                    viewModel.resetState() // Limpa o estado da memória cache pra quem se deslogar não cair num loop fantasma da viewModel.
                     onLoginSuccess()
                 }
 
                 is LoginState.Error -> {
                     Text(
-                        text = "E-mail ou senha inválidos",
-                        color = MaterialTheme.colorScheme.error)
+                        text = (loginState as LoginState.Error).message,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                is LoginState.TooManyFailures -> {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = (loginState as LoginState.TooManyFailures).message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
                 }
 
                 else -> {}

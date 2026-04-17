@@ -70,6 +70,7 @@ fun HomeScreen(
     homeViewModel: HomeViewModel,
     patients: List<Patient>,
     isRefreshing: Boolean,
+    isLoading: Boolean,
     onRefresh: () -> Unit,
     onEditPatient: () -> Unit,
     onLogout: () -> Unit,
@@ -126,7 +127,11 @@ fun HomeScreen(
         ) {
 
         // 🔹 Lista de pacientes
-        if (patients.isEmpty()) {
+        if (isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.CircularProgressIndicator()
+            }
+        } else if (patients.isEmpty()) {
             EmptyPatientsList(onAddPatient = onAddPatient)
         } else {
             LazyColumn(

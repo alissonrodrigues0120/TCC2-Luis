@@ -82,8 +82,8 @@ fun AddPatientScreen(
                 // Campo Nome
                 OutlinedTextField(
                     value = name,
-                    onValueChange = {
-                        name = it
+                    onValueChange = { newValue ->
+                        name = newValue.filter { it.isLetter() || it.isWhitespace() }
                         nameError = false
                     },
                     label = { Text("Nome") },

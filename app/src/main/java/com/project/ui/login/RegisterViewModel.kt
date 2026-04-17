@@ -32,9 +32,11 @@ class RegisterViewModel : ViewModel() {
 
                 _state.value = RegisterState.Success
 
+            } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                _state.value = RegisterState.Error("Este e-mail já está cadastrado no sistema.")
             } catch (e: Exception) {
                 _state.value = RegisterState.Error(
-                    e.message ?: "Erro ao cadastrar usuário"
+                    e.localizedMessage ?: "Erro ao cadastrar usuário"
                 )
             }
         }
