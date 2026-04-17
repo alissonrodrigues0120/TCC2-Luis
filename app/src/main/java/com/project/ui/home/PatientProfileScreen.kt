@@ -36,10 +36,14 @@ fun PatientProfileScreen(
     patientId: String,
     homeViewModel: HomeViewModel,
     ecomapaViewModel: EcomapaViewModel,
+    genogramaViewModel: com.project.ui.home.GenogramaViewModel,
     onBack: () -> Unit,
     onCreateEcomapa: () -> Unit,
+    onCreateGenograma: (com.project.data.model.Patient) -> Unit,
     onOpenEcomapa: (String) -> Unit,
+    onOpenGenograma: (String) -> Unit,
     onOpenEcomapaView: (String) -> Unit,
+    onOpenGenogramaView: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val screenState by homeViewModel.screenState.collectAsState()
@@ -50,9 +54,11 @@ fun PatientProfileScreen(
     }
 
     val ecomapas by ecomapaViewModel.ecomapas.collectAsState()
+    val genogramasState by genogramaViewModel.state.collectAsState()
 
     LaunchedEffect(patientId) {
         ecomapaViewModel.loadEcomapas(patientId)
+        genogramaViewModel.loadGenogramas(patientId)
     }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -156,7 +162,10 @@ fun PatientProfileScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     ) {
                         Button(
-                            onClick = { isMenuExpanded = false; /* TODO Criar Genograma */ },
+                            onClick = { 
+                                isMenuExpanded = false 
+                                patient?.let { onCreateGenograma(it) }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
                         ) {
                             Text("Criar Genograma")
@@ -281,7 +290,22 @@ fun PatientProfileScreen(
                         date = dateString,
                         onView = { onOpenEcomapaView(ecomapa.id) },
                         onEdit = { onOpenEcomapa(ecomapa.id) },
-                        onDelete = { ecomapaToDelete = ecomapa.id }
+                        onDelete = { ecomapaToDelete = ecomapa.id } // Usar estado apropriado se precisar refatorar pra delecao local
+                    )
+                }
+            }
+
+            // Exibir lista de Genogramas
+            if (genogramasState.genogramas.isNotEmpty()) {
+                genogramasState.genogramas.forEach { genograma ->
+                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    val dateString = dateFormat.format(Date(genograma.createdAt))
+                    DocumentItem(
+                        title = "Genograma Clínico",
+                        date = dateString,
+                        onView = { onOpenGenogramaView(genograma.id) },
+                        onEdit = { onOpenGenograma(genograma.id) },
+                        onDelete = { genogramaViewModel.deleteGenograma(patientId, genograma.id) }
                     )
                 }
             }

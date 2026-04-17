@@ -49,7 +49,7 @@ class EcomapaRepository(private val userId: String) {
             val collection = getEcomapasCollection(patientId) ?: return null
             val docRef = collection.document()
             val ecomapa = Ecomapa(id = docRef.id, patientId = patientId)
-            docRef.set(ecomapa.toMap()).await()
+            docRef.set(ecomapa.toMap())
             docRef.id
         } catch (e: Exception) {
             e.printStackTrace()

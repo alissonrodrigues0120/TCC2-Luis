@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     homeViewModel: HomeViewModel,
     ecomapaViewModel: EcomapaViewModel,
+    genogramaViewModel: com.project.ui.home.GenogramaViewModel,
     modifier: Modifier = Modifier,
     onLogout: () -> Unit
 ) {
@@ -183,17 +184,35 @@ fun MainScreen(
                                 .replace("{ecomapaId}", ecomapaId))
                         }
                     },
+                    onCreateGenograma = { patient ->
+                        genogramaViewModel.createGenograma(patient) { genogramaId ->
+                            navController.navigate(AppDestinations.GENOGRAMA_FORM.route
+                                .replace("{patientId}", patient.id)
+                                .replace("{genogramaId}", genogramaId))
+                        }
+                    },
                     onOpenEcomapa = { ecomapaId ->
                         navController.navigate(AppDestinations.ECOMAPA_FORM.route
                             .replace("{patientId}", patientId)
                             .replace("{ecomapaId}", ecomapaId))
+                    },
+                    onOpenGenograma = { genogramaId ->
+                        navController.navigate(AppDestinations.GENOGRAMA_FORM.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId))
                     },
                     onOpenEcomapaView = { ecomapaId ->
                         navController.navigate(AppDestinations.ECOMAPA_VIEW.route
                             .replace("{patientId}", patientId)
                             .replace("{ecomapaId}", ecomapaId))
                     },
-                    ecomapaViewModel = ecomapaViewModel
+                    onOpenGenogramaView = { genogramaId ->
+                        navController.navigate(AppDestinations.GENOGRAMA_VIEW.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId))
+                    },
+                    ecomapaViewModel = ecomapaViewModel,
+                    genogramaViewModel = genogramaViewModel
                 )
             }
 
@@ -264,6 +283,80 @@ fun MainScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
+
+            composable(
+                route = AppDestinations.GENOGRAMA_FORM.route,
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("genogramaId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val genogramaId = backStackEntry.arguments?.getString("genogramaId") ?: return@composable
+                com.project.ui.home.GenogramaFormScreen(
+                    patientId = patientId,
+                    genogramaId = genogramaId,
+                    viewModel = genogramaViewModel,
+                    onBack = { navController.popBackStack() },
+                    onAddMember = {
+                        navController.navigate(AppDestinations.ADD_FAMILY_MEMBER.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId))
+                    },
+                    onEditMember = { memberId ->
+                        navController.navigate(AppDestinations.ADD_FAMILY_MEMBER.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId) + "?memberId=$memberId")
+                    },
+                    onOpenView = {
+                        navController.navigate(AppDestinations.GENOGRAMA_VIEW.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId))
+                    }
+                )
+            }
+
+            composable(
+                route = AppDestinations.ADD_FAMILY_MEMBER.route + "?memberId={memberId}",
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("genogramaId") { type = NavType.StringType },
+                    navArgument("memberId") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val genogramaId = backStackEntry.arguments?.getString("genogramaId") ?: return@composable
+                val memberId = backStackEntry.arguments?.getString("memberId")
+                com.project.ui.home.AddFamilyMemberScreen(
+                    patientId = patientId,
+                    genogramaId = genogramaId,
+                    memberId = memberId,
+                    viewModel = genogramaViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = AppDestinations.GENOGRAMA_VIEW.route,
+                arguments = listOf(
+                    navArgument("patientId") { type = NavType.StringType },
+                    navArgument("genogramaId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: return@composable
+                val genogramaId = backStackEntry.arguments?.getString("genogramaId") ?: return@composable
+                com.project.ui.home.GenogramaViewScreen(
+                    patientId = patientId,
+                    genogramaId = genogramaId,
+                    viewModel = genogramaViewModel,
+                    onBack = { navController.popBackStack() },
+                    onEditMember = { memberId ->
+                        navController.navigate(AppDestinations.ADD_FAMILY_MEMBER.route
+                            .replace("{patientId}", patientId)
+                            .replace("{genogramaId}", genogramaId) + "?memberId=$memberId")
+                    }
+                )
+            }
         }
     }
 }
@@ -299,6 +392,12 @@ fun TcctwoApp(modifier: Modifier = Modifier, initialPendingUri: android.net.Uri?
             val ecomapaViewModel: EcomapaViewModel = viewModel(
                 key = "ecomapa_$userId",
                 factory = EcomapaViewModelFactory(ecomapaRepository)
+            )
+
+            val genogramaRepository = com.project.data.repository.GenogramaRepository(userId)
+            val genogramaViewModel: com.project.ui.home.GenogramaViewModel = viewModel(
+                key = "genograma_$userId",
+                factory = com.project.ui.home.GenogramaViewModelFactory(genogramaRepository)
             )
 
             var showImportDialog by remember { mutableStateOf(pendingUri != null) }
@@ -344,6 +443,7 @@ fun TcctwoApp(modifier: Modifier = Modifier, initialPendingUri: android.net.Uri?
             MainScreen(
                 homeViewModel = homeViewModel,
                 ecomapaViewModel = ecomapaViewModel,
+                genogramaViewModel = genogramaViewModel,
                 onLogout = {
                     FirebaseAuth.getInstance().signOut()
                     isLoggedIn = false
@@ -398,4 +498,7 @@ sealed class AppDestinations(val route: String) {
     object ECOMAPA_FORM : AppDestinations("ecomapa_form/{patientId}/{ecomapaId}")
     object ADD_NETWORK : AppDestinations("add_network/{patientId}/{ecomapaId}")
     object ECOMAPA_VIEW : AppDestinations("ecomapa_view/{patientId}/{ecomapaId}")
+    object GENOGRAMA_FORM : AppDestinations("genograma_form/{patientId}/{genogramaId}")
+    object ADD_FAMILY_MEMBER : AppDestinations("add_family_member/{patientId}/{genogramaId}")
+    object GENOGRAMA_VIEW : AppDestinations("genograma_view/{patientId}/{genogramaId}")
 }
