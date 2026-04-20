@@ -37,6 +37,17 @@ class GenogramaRepository(private val userId: String) {
     private fun getEmotionalBondsCollection(patientId: String, genogramaId: String) =
         getGenogramasCollection(patientId)?.document(genogramaId)?.collection("emotional_bonds")
 
+    private suspend fun touchPatientUpdate(patientId: String) {
+        if (isValidUserId) {
+            try {
+                db.collection("users").document(userId).collection("patients").document(patientId)
+                    .update("remoteLastUpdate", System.currentTimeMillis())
+            } catch (e: Exception) {
+                // Ignore if offline or not found
+            }
+        }
+    }
+
 
     // --- GENOGRAMA METHODS ---
 
@@ -59,7 +70,8 @@ class GenogramaRepository(private val userId: String) {
     suspend fun renameGenograma(patientId: String, genogramaId: String, newTitle: String) {
         if (!isValidUserId) return
         try {
-            getGenogramasCollection(patientId)?.document(genogramaId)?.update("title", newTitle)?.await()
+            getGenogramasCollection(patientId)?.document(genogramaId)?.update("title", newTitle)
+            touchPatientUpdate(patientId)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -71,7 +83,8 @@ class GenogramaRepository(private val userId: String) {
             val collection = getGenogramasCollection(patientId) ?: return null
             val docRef = collection.document()
             val genograma = Genograma(id = docRef.id, patientId = patientId, title = title)
-            docRef.set(genograma.toMap()) // Offline-first sem await
+            docRef.set(genograma.toMap()) // Aguarda para ter certeza antes de atualizar a data
+            touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
             e.printStackTrace()
@@ -82,7 +95,8 @@ class GenogramaRepository(private val userId: String) {
     suspend fun deleteGenograma(patientId: String, genogramaId: String): Boolean {
         if (!isValidUserId) return false
         return try {
-            getGenogramasCollection(patientId)?.document(genogramaId)?.delete()?.await()
+            getGenogramasCollection(patientId)?.document(genogramaId)?.delete()
+            touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -110,12 +124,14 @@ class GenogramaRepository(private val userId: String) {
             val coll = getMembersCollection(patientId, genogramaId) ?: return null
             val docRef = if (member.id.isEmpty()) coll.document() else coll.document(member.id)
             docRef.set(member.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+            touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) { e.printStackTrace(); null }
     }
 
     suspend fun deleteMember(patientId: String, genogramaId: String, memberId: String) {
-        getMembersCollection(patientId, genogramaId)?.document(memberId)?.delete()?.await()
+        getMembersCollection(patientId, genogramaId)?.document(memberId)?.delete()
+        touchPatientUpdate(patientId)
     }
 
 
@@ -136,10 +152,12 @@ class GenogramaRepository(private val userId: String) {
         val coll = getUnionsCollection(patientId, genogramaId) ?: return
         val docRef = if (union.id.isEmpty()) coll.document() else coll.document(union.id)
         docRef.set(union.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        touchPatientUpdate(patientId)
     }
     
     suspend fun deleteUnion(patientId: String, genogramaId: String, unionId: String) {
-        getUnionsCollection(patientId, genogramaId)?.document(unionId)?.delete()?.await()
+        getUnionsCollection(patientId, genogramaId)?.document(unionId)?.delete()
+        touchPatientUpdate(patientId)
     }
 
 
@@ -160,10 +178,12 @@ class GenogramaRepository(private val userId: String) {
         val coll = getFiliationsCollection(patientId, genogramaId) ?: return
         val docRef = if (filiation.id.isEmpty()) coll.document() else coll.document(filiation.id)
         docRef.set(filiation.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        touchPatientUpdate(patientId)
     }
 
     suspend fun deleteFiliation(patientId: String, genogramaId: String, filiationId: String) {
-        getFiliationsCollection(patientId, genogramaId)?.document(filiationId)?.delete()?.await()
+        getFiliationsCollection(patientId, genogramaId)?.document(filiationId)?.delete()
+        touchPatientUpdate(patientId)
     }
 
 
@@ -184,10 +204,12 @@ class GenogramaRepository(private val userId: String) {
         val coll = getEmotionalBondsCollection(patientId, genogramaId) ?: return
         val docRef = if (bond.id.isEmpty()) coll.document() else coll.document(bond.id)
         docRef.set(bond.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        touchPatientUpdate(patientId)
     }
 
     suspend fun deleteEmotionalBond(patientId: String, genogramaId: String, bondId: String) {
-        getEmotionalBondsCollection(patientId, genogramaId)?.document(bondId)?.delete()?.await()
+        getEmotionalBondsCollection(patientId, genogramaId)?.document(bondId)?.delete()
+        touchPatientUpdate(patientId)
     }
 
     suspend fun duplicateGenograma(patientId: String, originalGenogramaId: String, newTitle: String): String? {
@@ -198,6 +220,7 @@ class GenogramaRepository(private val userId: String) {
             val newId = docRef.id
             val genograma = Genograma(id = newId, patientId = patientId, title = newTitle)
             docRef.set(genograma.toMap())
+            touchPatientUpdate(patientId)
             
             val oldMembersSnap = getMembersCollection(patientId, originalGenogramaId)?.get()?.await()
             val oldUnionsSnap = getUnionsCollection(patientId, originalGenogramaId)?.get()?.await()

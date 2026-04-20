@@ -25,6 +25,8 @@ class EcomapaRepository(private val userId: String) {
     private fun getSupportNetworksCollection(patientId: String, ecomapaId: String) =
         getEcomapasCollection(patientId)?.document(ecomapaId)?.collection("supportNetworks")
 
+
+
     // --- ECOMAPA METHODS ---
 
     fun getEcomapas(patientId: String): Flow<List<Ecomapa>> = if (!isValidUserId) flowOf(emptyList()) else {
@@ -43,10 +45,22 @@ class EcomapaRepository(private val userId: String) {
         }
     }
 
+    private suspend fun touchPatientUpdate(patientId: String) {
+        if (isValidUserId) {
+            try {
+                db.collection("users").document(userId).collection("patients").document(patientId)
+                    .update("remoteLastUpdate", System.currentTimeMillis())
+            } catch (e: Exception) {
+                // se falhar, ok, pode ser offline
+            }
+        }
+    }
+
     suspend fun renameEcomapa(patientId: String, ecomapaId: String, newTitle: String) {
         if (!isValidUserId) return
         try {
-            getEcomapasCollection(patientId)?.document(ecomapaId)?.update("title", newTitle)?.await()
+            getEcomapasCollection(patientId)?.document(ecomapaId)?.update("title", newTitle)
+            touchPatientUpdate(patientId)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -59,6 +73,7 @@ class EcomapaRepository(private val userId: String) {
             val docRef = collection.document()
             val ecomapa = Ecomapa(id = docRef.id, patientId = patientId, title = title)
             docRef.set(ecomapa.toMap())
+            touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
             e.printStackTrace()
@@ -70,7 +85,8 @@ class EcomapaRepository(private val userId: String) {
         if (!isValidUserId) return false
         return try {
             val collection = getEcomapasCollection(patientId) ?: return false
-            collection.document(ecomapaId).delete().await()
+            collection.document(ecomapaId).delete()
+            touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -109,7 +125,8 @@ class EcomapaRepository(private val userId: String) {
             val collection = getSupportNetworksCollection(patientId, ecomapaId) ?: return null
             val docRef = if (network.id.isEmpty()) collection.document() else collection.document(network.id)
             val newNetwork = network.copy(id = docRef.id, ecomapaId = ecomapaId, patientId = patientId)
-            docRef.set(newNetwork.toMap()).await()
+            docRef.set(newNetwork.toMap())
+            touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
             e.printStackTrace()
@@ -121,7 +138,8 @@ class EcomapaRepository(private val userId: String) {
         if (!isValidUserId) return false
         return try {
             val collection = getSupportNetworksCollection(patientId, ecomapaId) ?: return false
-            collection.document(networkId).delete().await()
+            collection.document(networkId).delete()
+            touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
             e.printStackTrace()

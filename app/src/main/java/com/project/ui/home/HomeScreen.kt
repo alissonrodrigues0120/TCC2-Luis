@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,6 +66,7 @@ import com.project.utils.ImageCompressor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.project.ui.components.TooltipIconButton
 
@@ -271,6 +273,7 @@ fun HomeScreen(
 }
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPatientDialog(
     patient: Patient?,
@@ -280,8 +283,7 @@ fun EditPatientDialog(
     var name by remember { mutableStateOf(patient?.name ?: "") }
     var age by remember { mutableStateOf(patient?.age?.toString() ?: "") }
     var gender by remember { mutableStateOf(patient?.gender ?: "Masculino") }
-    var condition by remember { mutableStateOf(patient?.condition ?: "") }
-    var observations by remember { mutableStateOf(patient?.observations ?: "") }
+    var birthDate by remember { mutableStateOf(patient?.birthDate ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -293,8 +295,7 @@ fun EditPatientDialog(
                             name = name,
                             age = age.toIntOrNull() ?: it.age,
                             gender = gender,
-                            condition = condition,
-                            observations = observations
+                            birthDate = birthDate
                         )
                     )
                 }
@@ -319,32 +320,69 @@ fun EditPatientDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = age,
-                    onValueChange = { age = it },
-                    label = { Text("Idade") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    var showDatePicker by remember { mutableStateOf(false) }
+
+                    OutlinedTextField(
+                        value = birthDate,
+                        onValueChange = {},
+                        label = { Text("Data Nasc.") },
+                        placeholder = { Text("15/02/1990") },
+                        modifier = Modifier.weight(0.45f).padding(top = 8.dp),
+                        readOnly = true,
+                        trailingIcon = {
+                            TooltipIconButton(tooltipText = "Calendário", onClick = { showDatePicker = true }) {
+                                Icon(androidx.compose.material.icons.Icons.Default.DateRange, contentDescription = "Selecionar Data")
+                            }
+                        }
+                    )
+
+                    if (showDatePicker) {
+                        val datePickerState = androidx.compose.material3.rememberDatePickerState()
+                        androidx.compose.material3.DatePickerDialog(
+                            onDismissRequest = { showDatePicker = false },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        val dateStr = DateUtils.formatMillisToDateString(millis)
+                                        birthDate = dateStr
+                                        
+                                        val cal = java.util.Calendar.getInstance()
+                                        cal.timeInMillis = millis
+                                        val today = java.util.Calendar.getInstance()
+                                        var calcAge = today.get(java.util.Calendar.YEAR) - cal.get(java.util.Calendar.YEAR)
+                                        if (today.get(java.util.Calendar.DAY_OF_YEAR) < cal.get(java.util.Calendar.DAY_OF_YEAR)) {
+                                            calcAge--
+                                        }
+                                        age = if (calcAge < 0) "0" else calcAge.toString()
+                                    }
+                                    showDatePicker = false
+                                }) { Text("OK") }
+                            },
+                        ) {
+                            androidx.compose.material3.DatePicker(state = datePickerState)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    OutlinedTextField(
+                        value = age,
+                        onValueChange = { age = it },
+                        label = { Text("Idade") },
+                        modifier = Modifier.weight(0.3f).padding(top = 8.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
 
                 GenderDropdown(
                     selectedGender = gender,
                     onGenderSelected = { gender = it },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                )
-
-                ConditionDropdown(
-                    selectedCondition = condition,
-                    onConditionSelected = { condition = it },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                )
-
-                OutlinedTextField(
-                    value = observations,
-                    onValueChange = { observations = it },
-                    label = { Text("Observações") },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(100.dp),
-                    maxLines = 4
                 )
             }
         }
@@ -456,6 +494,17 @@ private fun PatientItem(
                     text = "${patient.age} anos • ${patient.condition}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                
+                val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+                val createdStr = dateFormat.format(java.util.Date(patient.createdAt))
+                val updatedStr = dateFormat.format(java.util.Date(patient.remoteLastUpdate))
+                Text(
+                    text = "Criado: $createdStr | Atualizado: $updatedStr",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
 

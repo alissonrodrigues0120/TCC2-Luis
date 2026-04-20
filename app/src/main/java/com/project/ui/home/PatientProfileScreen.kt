@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -77,6 +79,9 @@ fun PatientProfileScreen(
     var isMenuExpanded by remember { mutableStateOf(false) }
     var ecomapaToDelete by remember { mutableStateOf<String?>(null) }
     var genogramaToDelete by remember { mutableStateOf<String?>(null) }
+    
+    var showObsDialog by remember { mutableStateOf(false) }
+    var inlineObsText by remember { mutableStateOf("") }
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -162,6 +167,33 @@ fun PatientProfileScreen(
         )
     }
 
+    if (showObsDialog) {
+        AlertDialog(
+            onDismissRequest = { showObsDialog = false },
+            title = { Text("Editar Observações") },
+            text = {
+                OutlinedTextField(
+                    value = inlineObsText,
+                    onValueChange = { inlineObsText = it },
+                    label = { Text("Anotações Clínicas") },
+                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                    maxLines = 6
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    patient?.let {
+                        homeViewModel.updatePatient(it.copy(observations = inlineObsText))
+                    }
+                    showObsDialog = false
+                }) { Text("Salvar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showObsDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -231,7 +263,8 @@ fun PatientProfileScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -323,12 +356,32 @@ fun PatientProfileScreen(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Condição: ${patient.condition}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    var expandedCondition by remember { mutableStateOf(false) }
+                    Box {
+                        Text(
+                            text = "Condição: ${patient.condition} ▾",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable { expandedCondition = true }
+                                .padding(vertical = 4.dp, horizontal = 2.dp)
+                        )
+                        DropdownMenu(
+                            expanded = expandedCondition,
+                            onDismissRequest = { expandedCondition = false }
+                        ) {
+                            listOf("Em tratamento", "Alta", "Desistiu").forEach { cond ->
+                                DropdownMenuItem(
+                                    text = { Text(cond) },
+                                    onClick = { 
+                                        expandedCondition = false
+                                        homeViewModel.updatePatient(patient.copy(condition = cond)) 
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Actions
@@ -360,15 +413,25 @@ fun PatientProfileScreen(
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .clickable { 
+                            inlineObsText = patient.observations
+                            showObsDialog = true 
+                        }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Observações",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Observações",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Edit, contentDescription = "Editar Observações", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = patient.observations,
@@ -376,6 +439,18 @@ fun PatientProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { 
+                        inlineObsText = ""
+                        showObsDialog = true 
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Adicionar Observação", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Adicionar Observação Inicial")
                 }
             }
 
@@ -460,7 +535,7 @@ fun PatientProfileScreen(
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier.fillMaxWidth().height(550.dp)
             ) { page ->
                 when (page) {
                     0 -> {

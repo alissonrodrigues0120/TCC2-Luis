@@ -69,7 +69,7 @@ fun GenogramaFormScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
-    val tabTitles = listOf("Membros", "Parentescos", "Uniões", "Afinidades")
+    val tabTitles = listOf("Membros", "Filiações", "Uniões", "Afinidades")
     val pagerState = rememberPagerState(pageCount = { tabTitles.size })
 
     Scaffold(

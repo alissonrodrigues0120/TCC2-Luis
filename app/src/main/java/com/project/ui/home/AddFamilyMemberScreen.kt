@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,6 +38,7 @@ fun AddFamilyMemberScreen(
     var isEgo by remember { mutableStateOf(existingMember?.isEgo ?: false) }
     var name by remember { mutableStateOf(existingMember?.nome ?: "") }
     var birthData by remember { mutableStateOf(existingMember?.nascimento ?: "") }
+    var idade by remember { mutableStateOf("") }
     var sexo by remember { mutableStateOf(existingMember?.sexo ?: "M") }
     var vivo by remember { mutableStateOf(existingMember?.vivo ?: true) }
     var deathData by remember { mutableStateOf(existingMember?.falecimento ?: "") }
@@ -119,13 +121,72 @@ fun AddFamilyMemberScreen(
             }
             Text("Classe: $generationDesc", fontSize = 12.sp, color = Color.Gray)
 
-            OutlinedTextField(
-                value = birthData,
-                onValueChange = { birthData = it },
-                label = { Text("Ano de Nascimento (Opcional)") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                var showDatePicker by remember { mutableStateOf(false) }
+
+                OutlinedTextField(
+                    value = birthData,
+                    onValueChange = {}, // managed by real
+                    label = { Text("Data de Nasc. (Opcional)") },
+                    placeholder = { Text("Ex: 15/02/1990") },
+                    modifier = Modifier.weight(0.5f),
+                    readOnly = true,
+                    trailingIcon = {
+                        TooltipIconButton(tooltipText = "Calendário", onClick = { showDatePicker = true }) {
+                            Icon(androidx.compose.material.icons.Icons.Default.DateRange, contentDescription = "Selecionar Data")
+                        }
+                    }
+                )
+
+                if (showDatePicker) {
+                    val datePickerState = androidx.compose.material3.rememberDatePickerState()
+                    androidx.compose.material3.DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    val dateStr = DateUtils.formatMillisToDateString(millis)
+                                    birthData = dateStr
+                                    
+                                    val cal = java.util.Calendar.getInstance()
+                                    cal.timeInMillis = millis
+                                    val today = java.util.Calendar.getInstance()
+                                    var calcAge = today.get(java.util.Calendar.YEAR) - cal.get(java.util.Calendar.YEAR)
+                                    if (today.get(java.util.Calendar.DAY_OF_YEAR) < cal.get(java.util.Calendar.DAY_OF_YEAR)) {
+                                        calcAge--
+                                    }
+                                    idade = if (calcAge < 0) "0" else calcAge.toString()
+                                }
+                                showDatePicker = false
+                            }) { Text("OK") }
+                        },
+                    ) {
+                        androidx.compose.material3.DatePicker(state = datePickerState)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                OutlinedTextField(
+                    value = idade,
+                    onValueChange = { novo ->
+                        idade = novo.filter { char -> char.isDigit() }
+                        // Calculo reverso se o utente só meter a idade:
+                        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                        val ageInt = idade.toIntOrNull()
+                        if (ageInt != null && birthData.isEmpty()) {
+                            birthData = "01/01/${currentYear - ageInt}" 
+                        }
+                    },
+                    label = { Text("Idade") },
+                    modifier = Modifier.weight(0.3f),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
 
             OutlinedTextField(
                 value = ocupacao,

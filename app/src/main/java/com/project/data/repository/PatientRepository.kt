@@ -118,5 +118,17 @@ class PatientRepository(private val userId: String) {
             false
         }
     }
-}
+    // ✅ Atualizar data de edição do paciente (gatilho de Genograma/Ecomapa)
+    suspend fun updatePatientLastEditDate(patientId: String): Boolean {
+        if (!isValidUserId || patientId.isBlank()) return false
 
+        return try {
+            val collection = patientsCollection ?: return false
+            collection.document(patientId).update("remoteLastUpdate", System.currentTimeMillis()).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+}

@@ -15,6 +15,8 @@ import java.util.UUID
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import com.project.ui.components.TooltipIconButton
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 
 @Composable
@@ -36,7 +38,7 @@ fun SharedUnionDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initialUnion != null) "Editar União" else "Registrar União") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text("Cônjuge A:", fontSize = 12.sp)
                 var expandedA by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -44,7 +46,7 @@ fun SharedUnionDialog(
                         Text(members.find { it.id == selectedA }?.nome ?: "Selecionar Membro...") 
                     }
                     DropdownMenu(expanded = expandedA, onDismissRequest = { expandedA = false }) { 
-                        members.forEach { m -> 
+                        members.filter { it.id != selectedB }.forEach { m -> 
                             DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedA = m.id; expandedA = false }) 
                         } 
                     }
@@ -57,14 +59,14 @@ fun SharedUnionDialog(
                         Text(members.find { it.id == selectedB }?.nome ?: "Selecionar Parceiro...") 
                     }
                     DropdownMenu(expanded = expandedB, onDismissRequest = { expandedB = false }) { 
-                        members.forEach { m -> 
+                        members.filter { it.id != selectedA }.forEach { m -> 
                             DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedB = m.id; expandedB = false }) 
                         } 
                     }
                 }
                 
                 Text("Tipo de Vínculo:", fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                Row { 
+                Column { 
                     listOf("Casamento", "União Estável", "Namoro").forEach { type -> 
                         Row(verticalAlignment = Alignment.CenterVertically) { 
                             RadioButton(selected = unionType == type, onClick = { unionType = type })
@@ -74,7 +76,7 @@ fun SharedUnionDialog(
                 }
                 
                 Text("Status Atual:", fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                Row { 
+                Column { 
                     listOf("Ativo", "Separado", "Divorciado").forEach { status -> 
                         Row(verticalAlignment = Alignment.CenterVertically) { 
                             RadioButton(selected = unionStatus == status, onClick = { unionStatus = status })
@@ -118,12 +120,19 @@ fun SharedFiliationDialog(
     var selectedPai by remember { mutableStateOf<String?>(initialFiliation?.paiId?.ifEmpty { prefilledParent }) }
     var selectedMae by remember { mutableStateOf<String?>(initialFiliation?.maeId?.ifEmpty { prefilledParent }) }
     var filiationType by remember { mutableStateOf(initialFiliation?.tipo ?: "Biológico") }
+    var isHomoaffective by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss, 
         title = { Text(if (initialFiliation != null) "Editar Parentesco" else "Registrar Parentesco/Filiação") }, 
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = isHomoaffective, onCheckedChange = { isHomoaffective = it })
+                    Text("Configuração Homoafetiva", fontSize = 12.sp)
+                }
+
                 Text("Filho(a):", fontSize = 12.sp)
                 var expandedFilho by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -131,13 +140,14 @@ fun SharedFiliationDialog(
                         Text(members.find { it.id == selectedFilho }?.nome ?: "Selecionar Criança/Adulto...") 
                     }
                     DropdownMenu(expanded = expandedFilho, onDismissRequest = { expandedFilho = false }) { 
-                        members.forEach { m -> 
+                        members.filter { it.id != selectedPai && it.id != selectedMae }.forEach { m -> 
                             DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedFilho = m.id; expandedFilho = false }) 
                         } 
                     }
                 }
                 
-                Text("Genitor A (Pai/Opcional):", fontSize = 12.sp)
+                val gen1Label = if (isHomoaffective) "Responsável A (Opcional):" else "Genitor A (Opcional):"
+                Text(gen1Label, fontSize = 12.sp)
                 var expandedPai by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { expandedPai = true }, modifier = Modifier.fillMaxWidth()) { 
@@ -145,24 +155,29 @@ fun SharedFiliationDialog(
                     }
                     DropdownMenu(expanded = expandedPai, onDismissRequest = { expandedPai = false }) {
                         DropdownMenuItem(text = { Text("Nenhum / Desconhecido") }, onClick = { selectedPai = null; expandedPai = false })
-                        members.forEach { m -> DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedPai = m.id; expandedPai = false }) }
+                        members.filter { it.id != selectedFilho && it.id != selectedMae }.forEach { m -> 
+                            DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedPai = m.id; expandedPai = false }) 
+                        }
                     }
                 }
                 
-                Text("Genitor B (Mãe/Opcional):", fontSize = 12.sp)
+                val gen2Label = if (isHomoaffective) "Responsável B (Opcional):" else "Genitor B (Opcional):"
+                Text(gen2Label, fontSize = 12.sp)
                 var expandedMae by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { expandedMae = true }, modifier = Modifier.fillMaxWidth()) { 
-                        Text(members.find { it.id == selectedMae }?.nome ?: "Nenhum / Desconhecida") 
+                        Text(members.find { it.id == selectedMae }?.nome ?: "Nenhum / Desconhecido") 
                     }
                     DropdownMenu(expanded = expandedMae, onDismissRequest = { expandedMae = false }) {
-                        DropdownMenuItem(text = { Text("Nenhum / Desconhecida") }, onClick = { selectedMae = null; expandedMae = false })
-                        members.forEach { m -> DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedMae = m.id; expandedMae = false }) }
+                        DropdownMenuItem(text = { Text("Nenhum / Desconhecido") }, onClick = { selectedMae = null; expandedMae = false })
+                        members.filter { it.id != selectedFilho && it.id != selectedPai }.forEach { m -> 
+                            DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedMae = m.id; expandedMae = false }) 
+                        }
                     }
                 }
                 
                 Text("Natureza do Vinculo:", fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                Row { 
+                Column { 
                     listOf("Biológico", "Adotivo").forEach { type -> 
                         Row(verticalAlignment = Alignment.CenterVertically) { 
                             RadioButton(selected = filiationType == type, onClick = { filiationType = type })
@@ -211,7 +226,7 @@ fun SharedEmotionalDialog(
         onDismissRequest = onDismiss, 
         title = { Text(if (initialBond != null) "Editar Traço Emocional" else "Traço Emocional e Psicossocial") }, 
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text("Membro A:", fontSize = 12.sp)
                 var expandedA by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -219,7 +234,7 @@ fun SharedEmotionalDialog(
                         Text(members.find { it.id == selectedA }?.nome ?: "Selecionar Membro...") 
                     }
                     DropdownMenu(expanded = expandedA, onDismissRequest = { expandedA = false }) { 
-                        members.forEach { m -> 
+                        members.filter { it.id != selectedB }.forEach { m -> 
                             DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedA = m.id; expandedA = false }) 
                         } 
                     }
@@ -232,7 +247,7 @@ fun SharedEmotionalDialog(
                         Text(members.find { it.id == selectedB }?.nome ?: "Selecionar Membro...") 
                     }
                     DropdownMenu(expanded = expandedB, onDismissRequest = { expandedB = false }) { 
-                        members.forEach { m -> 
+                        members.filter { it.id != selectedA }.forEach { m -> 
                             DropdownMenuItem(text = { Text(m.nome) }, onClick = { selectedB = m.id; expandedB = false }) 
                         } 
                     }
