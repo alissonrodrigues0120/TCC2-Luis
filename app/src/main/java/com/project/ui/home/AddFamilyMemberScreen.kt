@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.FamilyMember
 import java.util.UUID
 
@@ -47,7 +49,7 @@ fun AddFamilyMemberScreen(
             TopAppBar(
                 title = { Text(if (memberId == null) "Novo Familiar" else "Editar Familiar") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 },

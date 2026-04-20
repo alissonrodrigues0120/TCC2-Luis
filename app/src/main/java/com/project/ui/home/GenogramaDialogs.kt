@@ -14,6 +14,8 @@ import com.project.data.model.GenogramUnion
 import java.util.UUID
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import com.project.ui.components.TooltipIconButton
+
 
 @Composable
 fun SharedUnionDialog(
@@ -311,11 +313,11 @@ fun FamilyMemberItem(
 
         Row {
             if (showEdit) {
-                IconButton(onClick = onEdit) { 
+                TooltipIconButton(tooltipText = "Editar", onClick = onEdit) { 
                     Icon(androidx.compose.material.icons.Icons.Default.Edit, contentDescription = "Editar", tint = androidx.compose.ui.graphics.Color.Black) 
                 }
             }
-            IconButton(onClick = onDelete) { 
+            TooltipIconButton(tooltipText = "Excluir", onClick = onDelete) { 
                 Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = "Excluir", tint = androidx.compose.ui.graphics.Color.Black) 
             }
         }

@@ -8,6 +8,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Add
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -23,6 +32,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.Patient
 import com.project.ui.home.HomeViewModel
 import kotlinx.coroutines.launch
@@ -65,6 +76,7 @@ fun PatientProfileScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var ecomapaToDelete by remember { mutableStateOf<String?>(null) }
+    var genogramaToDelete by remember { mutableStateOf<String?>(null) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -126,12 +138,36 @@ fun PatientProfileScreen(
         )
     }
 
+    if (genogramaToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { genogramaToDelete = null },
+            title = { Text("Excluir Genograma") },
+            text = { Text("Tem certeza que deseja excluir permanentemente este genograma?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        genogramaViewModel.deleteGenograma(patientId, genogramaToDelete!!)
+                        genogramaToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                ) {
+                    Text("Excluir")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { genogramaToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Perfil do Paciente", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 },
@@ -166,13 +202,13 @@ fun PatientProfileScreen(
                                 isMenuExpanded = false 
                                 patient?.let { onCreateGenograma(it) }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Text("Criar Genograma")
                         }
                         Button(
                             onClick = { isMenuExpanded = false; onCreateEcomapa() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Text("Criar Ecomapa")
                         }
@@ -180,7 +216,7 @@ fun PatientProfileScreen(
                 }
                 FloatingActionButton(
                     onClick = { isMenuExpanded = !isMenuExpanded },
-                    containerColor = Color(0xFF512DA8)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
                         imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add, 
@@ -205,18 +241,68 @@ fun PatientProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar
-                Surface(
-                    shape = CircleShape,
-                    color = Color(0xFFF3E5F5),
-                    modifier = Modifier.size(60.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(36.dp),
-                            tint = Color(0xFF7E57C2)
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    val context = LocalContext.current
+                    var showImagePicker by remember { mutableStateOf(false) }
+                    var tempUri by remember { mutableStateOf<android.net.Uri?>(null) }
+                    
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFF3E5F5),
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clickable {
+                                tempUri = com.project.utils.ImageCompressor.createTempImageUri(context)
+                                showImagePicker = true
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (patient.photoBase64.isNotBlank()) {
+                                AsyncImage(
+                                    model = com.project.utils.ImageCompressor.decodeBase64ToByteArray(patient.photoBase64),
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color(0xFF7E57C2)
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Camera icon badge
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .offset(x = 4.dp, y = 4.dp)
+                            .clickable {
+                                tempUri = com.project.utils.ImageCompressor.createTempImageUri(context)
+                                showImagePicker = true
+                            }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(androidx.compose.material.icons.Icons.Default.Edit, contentDescription = "Mudar Foto", tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    
+                    if (showImagePicker && tempUri != null) {
+                        ImagePickerDialog(
+                            showDialog = showImagePicker,
+                            onDismiss = { showImagePicker = false },
+                            onImageSelected = { selectedUri ->
+                                val base64 = com.project.utils.ImageCompressor.compressAndEncodeToBase64(context, selectedUri)
+                                if (base64 != null) {
+                                    homeViewModel.updatePatient(patient.copy(photoBase64 = base64))
+                                }
+                            },
+                            tempImageUri = tempUri!!
                         )
                     }
                 }
@@ -227,26 +313,33 @@ fun PatientProfileScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = patient.name,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "${patient.age} anos",
+                        text = "${patient.age} anos • ${patient.gender}",
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Condição: ${patient.condition}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
                 // Actions
                 Row {
-                    IconButton(onClick = { showEditDialog = true }) {
+                    TooltipIconButton(tooltipText = "Editar", onClick = { showEditDialog = true }) {
                         Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color(0xFF512DA8))
                     }
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    TooltipIconButton(tooltipText = "Excluir", onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Red)
                     }
-                    IconButton(onClick = { 
+                    TooltipIconButton(tooltipText = "Compartilhar", onClick = { 
                         coroutineScope.launch {
                             val syncManager = com.project.data.repository.DataSyncManager(context)
                             val (ecomapas, networks) = ecomapaViewModel.exportEcomapasData(patientId)
@@ -262,51 +355,188 @@ fun PatientProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
-            Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Real Items List
-            if (ecomapas.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
+            if (patient.observations.isNotBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
-                    Text(
-                        text = "Nenhum genograma ou ecomapa criado.",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
-            } else {
-                ecomapas.forEach { ecomapa ->
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    val dateString = dateFormat.format(Date(ecomapa.createdAt))
-                    DocumentItem(
-                        title = "Ecomapa",
-                        date = dateString,
-                        onView = { onOpenEcomapaView(ecomapa.id) },
-                        onEdit = { onOpenEcomapa(ecomapa.id) },
-                        onDelete = { ecomapaToDelete = ecomapa.id } // Usar estado apropriado se precisar refatorar pra delecao local
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Observações",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = patient.observations,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            // Exibir lista de Genogramas
-            if (genogramasState.genogramas.isNotEmpty()) {
-                genogramasState.genogramas.forEach { genograma ->
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    val dateString = dateFormat.format(Date(genograma.createdAt))
-                    DocumentItem(
-                        title = "Genograma Clínico",
-                        date = dateString,
-                        onView = { onOpenGenogramaView(genograma.id) },
-                        onEdit = { onOpenGenograma(genograma.id) },
-                        onDelete = { genogramaViewModel.deleteGenograma(patientId, genograma.id) }
-                    )
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val pagerState = rememberPagerState(pageCount = { 2 })
+            TabRow(
+                selectedTabIndex = pagerState.currentPage,
+                containerColor = Color.Transparent,
+                divider = { }
+            ) {
+                Tab(
+                    selected = pagerState.currentPage == 0,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
+                    text = { Text("Ecomapas") }
+                )
+                Tab(
+                    selected = pagerState.currentPage == 1,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
+                    text = { Text("Genogramas") }
+                )
+            }
+
+            var itemToDuplicate by remember { mutableStateOf<Triple<String, String, String>?>(null) } // Triple(Type, Id, Title)
+
+            if (itemToDuplicate != null) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { itemToDuplicate = null },
+                    title = { Text("Duplicar Documento") },
+                    text = { Text("Deseja criar uma cópia chamada '${itemToDuplicate!!.third} Cópia'?") },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            val (type, id, title) = itemToDuplicate!!
+                            if (type == "Ecomapa") {
+                                ecomapaViewModel.duplicateEcomapa(patientId, id, title)
+                            } else {
+                                genogramaViewModel.duplicateGenograma(patientId, id, title)
+                            }
+                            itemToDuplicate = null
+                        }) { Text("Copiar") }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { itemToDuplicate = null }) { Text("Cancelar") }
+                    }
+                )
+            }
+
+            var itemToRename by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+            var newTitleName by remember { mutableStateOf("") }
+
+            if (itemToRename != null) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { itemToRename = null },
+                    title = { Text("Renomear Documento") },
+                    text = { 
+                        OutlinedTextField(
+                            value = newTitleName,
+                            onValueChange = { newTitleName = it },
+                            label = { Text("Novo Título") },
+                            singleLine = true
+                        ) 
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            val (type, id, _) = itemToRename!!
+                            if (newTitleName.isNotBlank()) {
+                                if (type == "Ecomapa") {
+                                    ecomapaViewModel.renameEcomapa(patientId, id, newTitleName)
+                                } else {
+                                    genogramaViewModel.renameGenograma(patientId, id, newTitleName)
+                                }
+                            }
+                            itemToRename = null
+                        }) { Text("Salvar") }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { itemToRename = null }) { Text("Cancelar") }
+                    }
+                )
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            if (ecomapas.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("Nenhum ecomapa criado.", fontSize = 14.sp, color = Color.Gray)
+                                    }
+                                }
+                            } else {
+                                items(ecomapas.size) { index ->
+                                    val ecomapa = ecomapas[index]
+                                    val ecomapaTitle = ecomapa.title.ifBlank { "Ecomapa Clínico" }
+                                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                    val creationString = dateFormat.format(Date(ecomapa.createdAt))
+                                    val updatedString = dateFormat.format(Date(ecomapa.updatedAt))
+                                    val dateString = "Criado em: $creationString | Editado: $updatedString"
+                                    DocumentItem(
+                                        title = ecomapaTitle,
+                                        date = dateString,
+                                        onView = { onOpenEcomapaView(ecomapa.id) },
+                                        onEdit = { onOpenEcomapa(ecomapa.id) },
+                                        onDelete = { ecomapaToDelete = ecomapa.id },
+                                        onDuplicate = { 
+                                            itemToDuplicate = Triple("Ecomapa", ecomapa.id, ecomapaTitle)
+                                        },
+                                        onRename = {
+                                            newTitleName = ecomapaTitle
+                                            itemToRename = Triple("Ecomapa", ecomapa.id, ecomapaTitle)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            if (genogramasState.genogramas.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("Nenhum genograma criado.", fontSize = 14.sp, color = Color.Gray)
+                                    }
+                                }
+                            } else {
+                                items(genogramasState.genogramas.size) { index ->
+                                    val genograma = genogramasState.genogramas[index]
+                                    val genogramaTitle = genograma.title.ifBlank { "Genograma Clínico" }
+                                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                    val creationString = dateFormat.format(Date(genograma.createdAt))
+                                    val updatedString = dateFormat.format(Date(genograma.updatedAt))
+                                    val dateString = "Criado em: $creationString | Editado: $updatedString"
+                                    DocumentItem(
+                                        title = genogramaTitle,
+                                        date = dateString,
+                                        onView = { onOpenGenogramaView(genograma.id) },
+                                        onEdit = { onOpenGenograma(genograma.id) },
+                                        onDelete = { genogramaToDelete = genograma.id },
+                                        onDuplicate = { 
+                                            itemToDuplicate = Triple("Genograma", genograma.id, genogramaTitle)
+                                        },
+                                        onRename = {
+                                            newTitleName = genogramaTitle
+                                            itemToRename = Triple("Genograma", genograma.id, genogramaTitle)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -319,7 +549,9 @@ fun DocumentItem(
     date: String,
     onView: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDuplicate: () -> Unit,
+    onRename: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -345,11 +577,15 @@ fun DocumentItem(
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onRename() }) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(Icons.Default.Edit, contentDescription = "Renomear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+            }
             Text(
                 text = date,
                 fontSize = 12.sp,
@@ -358,14 +594,17 @@ fun DocumentItem(
         }
 
         Row {
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Black)
+            TooltipIconButton(tooltipText = "Duplicar", onClick = onDuplicate) {
+                Icon(Icons.Default.Add, contentDescription = "Copiar", tint = MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Black)
+            TooltipIconButton(tooltipText = "Editar", onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = onView) {
-                Icon(Icons.Default.Search, contentDescription = "Visualizar", tint = Color.Black)
+            TooltipIconButton(tooltipText = "Excluir", onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Red)
+            }
+            TooltipIconButton(tooltipText = "Visualizar", onClick = onView) {
+                Icon(Icons.Default.Search, contentDescription = "Visualizar", tint = MaterialTheme.colorScheme.primary)
             }
         }
     }

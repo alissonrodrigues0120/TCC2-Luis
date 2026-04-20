@@ -39,6 +39,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.project.data.model.Patient
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.shape.CircleShape
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.foundation.layout.width
+import com.project.ui.components.TooltipIconButton
+
+import java.util.Calendar
 import java.util.UUID
 
 
@@ -52,12 +67,14 @@ fun AddPatientScreen(
     modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
+    var birthDate by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("0") }
     var gender by remember { mutableStateOf("Masculino") }
+    var condition by remember { mutableStateOf("Em tratamento") }
     var observations by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf(false) }
-    var ageError by remember { mutableStateOf(false) }
-    var DialogSave by remember { mutableStateOf(false)}
+    var DialogSave by remember { mutableStateOf(false) }
+    var photoBase64 by remember { mutableStateOf("") }
 
 
     Scaffold(
@@ -65,7 +82,7 @@ fun AddPatientScreen(
             TopAppBar(
                 title = { Text("Adicionar Paciente") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 }
@@ -79,7 +96,54 @@ fun AddPatientScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Campo Nome
+                // Seleção de Foto
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    val context = LocalContext.current
+                    var showImagePicker by remember { mutableStateOf(false) }
+                    var tempUri by remember { mutableStateOf<android.net.Uri?>(null) }
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(Color.LightGray)
+                            .clickable {
+                                tempUri = com.project.utils.ImageCompressor.createTempImageUri(context)
+                                showImagePicker = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoBase64.isNotBlank()) {
+                            val decodedBytes = com.project.utils.ImageCompressor.decodeBase64ToByteArray(photoBase64)
+                            AsyncImage(
+                                model = decodedBytes,
+                                contentDescription = "Foto",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(60.dp))
+                        }
+                    }
+                    
+                    if (showImagePicker && tempUri != null) {
+                        ImagePickerDialog(
+                            showDialog = showImagePicker,
+                            onDismiss = { showImagePicker = false },
+                            onImageSelected = { selectedUri ->
+                                val base64 = com.project.utils.ImageCompressor.compressAndEncodeToBase64(context, selectedUri)
+                                if (base64 != null) {
+                                    photoBase64 = base64
+                                }
+                            },
+                            tempImageUri = tempUri!!
+                        )
+                    }
+                }
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+
+                // Campo Nom
+                // e
                 OutlinedTextField(
                     value = name,
                     onValueChange = { newValue ->
@@ -103,44 +167,85 @@ fun AddPatientScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Idade e Gênero
+                // Data de Nascimento e Idade Calculada
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    var showDatePicker by remember { mutableStateOf(false) }
+
+                    OutlinedTextField(
+                        value = birthDate,
+                        onValueChange = {},
+                        label = { Text("Data Nasc.") },
+                        placeholder = { Text("15/02/1990") },
+                        modifier = Modifier.weight(0.45f),
+                        readOnly = true,
+                        trailingIcon = {
+                            TooltipIconButton(tooltipText = "Calendário", onClick = { showDatePicker = true }) {
+                                Icon(androidx.compose.material.icons.Icons.Default.DateRange, contentDescription = "Selecionar Data")
+                            }
+                        }
+                    )
+
+                    if (showDatePicker) {
+                        val datePickerState = androidx.compose.material3.rememberDatePickerState()
+                        androidx.compose.material3.DatePickerDialog(
+                            onDismissRequest = { showDatePicker = false },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        val dateStr = com.project.ui.home.DateUtils.formatMillisToDateString(millis)
+                                        birthDate = dateStr
+                                        
+                                        // Inline Age Calculation
+                                        val cal = Calendar.getInstance()
+                                        cal.timeInMillis = millis
+                                        val today = Calendar.getInstance()
+                                        var calcAge = today.get(Calendar.YEAR) - cal.get(Calendar.YEAR)
+                                        if (today.get(Calendar.DAY_OF_YEAR) < cal.get(Calendar.DAY_OF_YEAR)) {
+                                            calcAge--
+                                        }
+                                        age = if (calcAge < 0) "0" else calcAge.toString()
+                                    }
+                                    showDatePicker = false
+                                }) { Text("OK") }
+                            },
+                        ) {
+                            androidx.compose.material3.DatePicker(state = datePickerState)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    OutlinedTextField(
+                        value = age,
+                        onValueChange = {},
+                        label = { Text("Idade") },
+                        modifier = Modifier.weight(0.3f),
+                        readOnly = true
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Gênero e Condição
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Campo Idade CORRIGIDO
-                    Column(modifier = Modifier.weight(0.45f)) {
-                        OutlinedTextField(
-                            value = age,
-                            onValueChange = { newValue ->
-                                val filtered = newValue.filter { char -> char.isDigit() }
-                                age = filtered
-                                if (filtered.isNotEmpty()) {
-                                    ageError = false
-                                }
-                            },
-                            label = { Text("Idade") },
-                            placeholder = { Text("Digite a idade") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth(),
-                            isError = getAgeErrorState(age),
-                            singleLine = true
-                        )
-
-                        getAgeErrorMessage(age)?.let { errorMessage ->
-                            Text(
-                                text = errorMessage,
-                                color = Color.Red,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-
-                    // Campo Gênero
                     GenderDropdown(
                         selectedGender = gender,
                         onGenderSelected = { gender = it },
+                        modifier = Modifier.weight(0.45f)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    ConditionDropdown(
+                        selectedCondition = condition,
+                        onConditionSelected = { condition = it },
                         modifier = Modifier.weight(0.45f)
                     )
                 }
@@ -166,19 +271,19 @@ fun AddPatientScreen(
                 Button(
                     onClick = {
                         val hasNameError = name.isEmpty()
-                        val hasAgeError = getAgeErrorState(age)
-
                         nameError = hasNameError
-                        ageError = hasAgeError
 
-                        if (!hasNameError && !hasAgeError) {
+                        if (!hasNameError) {
                             onSave(
                                 Patient(
                                     id = UUID.randomUUID().toString(),
                                     name = name,
-                                    age = age.toInt(),
+                                    age = age.toIntOrNull() ?: 0,
                                     gender = gender,
-                                    condition = "Em tratamento"
+                                    condition = condition,
+                                    birthDate = birthDate,
+                                    observations = observations,
+                                    photoBase64 = photoBase64
                                 )
                             )
 
@@ -271,6 +376,52 @@ fun GenderDropdown(
                     text = { Text(gender) },
                     onClick = {
                         onGenderSelected(gender)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConditionDropdown(
+    selectedCondition: String,
+    onConditionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val conditions = listOf("Em tratamento", "Alta", "Estável", "Grave")
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            readOnly = true,
+            value = selectedCondition,
+            onValueChange = { },
+            label = { Text("Condição") },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(
+                    expanded = expanded
+                )
+            },
+            modifier = Modifier.menuAnchor(),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            conditions.forEach { cond ->
+                DropdownMenuItem(
+                    text = { Text(cond) },
+                    onClick = {
+                        onConditionSelected(cond)
                         expanded = false
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding

@@ -56,12 +56,21 @@ class GenogramaRepository(private val userId: String) {
         }
     }
 
-    suspend fun createGenograma(patientId: String): String? {
+    suspend fun renameGenograma(patientId: String, genogramaId: String, newTitle: String) {
+        if (!isValidUserId) return
+        try {
+            getGenogramasCollection(patientId)?.document(genogramaId)?.update("title", newTitle)?.await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun createGenograma(patientId: String, title: String = ""): String? {
         if (!isValidUserId) return null
         return try {
             val collection = getGenogramasCollection(patientId) ?: return null
             val docRef = collection.document()
-            val genograma = Genograma(id = docRef.id, patientId = patientId)
+            val genograma = Genograma(id = docRef.id, patientId = patientId, title = title)
             docRef.set(genograma.toMap()) // Offline-first sem await
             docRef.id
         } catch (e: Exception) {
@@ -179,5 +188,68 @@ class GenogramaRepository(private val userId: String) {
 
     suspend fun deleteEmotionalBond(patientId: String, genogramaId: String, bondId: String) {
         getEmotionalBondsCollection(patientId, genogramaId)?.document(bondId)?.delete()?.await()
+    }
+
+    suspend fun duplicateGenograma(patientId: String, originalGenogramaId: String, newTitle: String): String? {
+        if (!isValidUserId) return null
+        return try {
+            val collection = getGenogramasCollection(patientId) ?: return null
+            val docRef = collection.document()
+            val newId = docRef.id
+            val genograma = Genograma(id = newId, patientId = patientId, title = newTitle)
+            docRef.set(genograma.toMap())
+            
+            val oldMembersSnap = getMembersCollection(patientId, originalGenogramaId)?.get()?.await()
+            val oldUnionsSnap = getUnionsCollection(patientId, originalGenogramaId)?.get()?.await()
+            val oldFiliationsSnap = getFiliationsCollection(patientId, originalGenogramaId)?.get()?.await()
+            val oldBondsSnap = getEmotionalBondsCollection(patientId, originalGenogramaId)?.get()?.await()
+            
+            val memberIdMap = mutableMapOf<String, String>()
+            val unionIdMap = mutableMapOf<String, String>()
+            
+            oldMembersSnap?.documents?.forEach { doc ->
+                val m = FamilyMember.fromSnapshot(doc)
+                val mNewId = java.util.UUID.randomUUID().toString()
+                memberIdMap[m.id] = mNewId
+                saveMember(patientId, newId, m.copy(id = mNewId, genogramaId = newId))
+            }
+            
+            oldUnionsSnap?.documents?.forEach { doc ->
+                val u = GenogramUnion.fromSnapshot(doc)
+                val uNewId = java.util.UUID.randomUUID().toString()
+                unionIdMap[u.id] = uNewId
+                saveUnion(patientId, newId, u.copy(
+                    id = uNewId, 
+                    genogramaId = newId,
+                    membroA = memberIdMap[u.membroA] ?: u.membroA,
+                    membroB = memberIdMap[u.membroB] ?: u.membroB
+                ))
+            }
+            
+            oldFiliationsSnap?.documents?.forEach { doc ->
+                val f = GenogramFiliation.fromSnapshot(doc)
+                saveFiliation(patientId, newId, f.copy(
+                    id = java.util.UUID.randomUUID().toString(),
+                    genogramaId = newId,
+                    uniaoOrigemId = unionIdMap[f.uniaoOrigemId] ?: f.uniaoOrigemId,
+                    filhoId = memberIdMap[f.filhoId] ?: f.filhoId
+                ))
+            }
+            
+            oldBondsSnap?.documents?.forEach { doc ->
+                val b = EmotionalBond.fromSnapshot(doc)
+                saveEmotionalBond(patientId, newId, b.copy(
+                    id = java.util.UUID.randomUUID().toString(),
+                    genogramaId = newId,
+                    membroAId = memberIdMap[b.membroAId] ?: b.membroAId,
+                    membroBId = memberIdMap[b.membroBId] ?: b.membroBId
+                ))
+            }
+
+            newId
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }

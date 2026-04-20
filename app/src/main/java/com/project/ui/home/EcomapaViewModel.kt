@@ -2,6 +2,8 @@ package com.project.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.Ecomapa
 import com.project.data.model.SupportNetwork
 import com.project.data.repository.EcomapaRepository
@@ -30,7 +32,7 @@ class EcomapaViewModel(private val repository: EcomapaRepository) : ViewModel() 
 
     fun createEcomapa(patientId: String, onCreated: (String) -> Unit) {
         viewModelScope.launch {
-            val newId = repository.createEcomapa(patientId)
+            val newId = repository.createEcomapa(patientId, "Ecomapa Clínico")
             if (newId != null) {
                 onCreated(newId)
             }
@@ -68,5 +70,18 @@ class EcomapaViewModel(private val repository: EcomapaRepository) : ViewModel() 
 
     suspend fun exportEcomapasData(patientId: String): Pair<List<Ecomapa>, List<SupportNetwork>> {
         return repository.exportEcomapasData(patientId)
+    }
+
+    fun duplicateEcomapa(patientId: String, originalEcomapaId: String, currentTitle: String) {
+        viewModelScope.launch {
+            val title = if (currentTitle.isBlank()) "Ecomapa Clínico" else currentTitle
+            repository.duplicateEcomapa(patientId, originalEcomapaId, "$title Cópia")
+        }
+    }
+
+    fun renameEcomapa(patientId: String, ecomapaId: String, newTitle: String) {
+        viewModelScope.launch {
+            repository.renameEcomapa(patientId, ecomapaId, newTitle)
+        }
     }
 }

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
@@ -58,9 +60,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
+import com.project.utils.ImageCompressor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.Patient
 
 
@@ -274,6 +281,7 @@ fun EditPatientDialog(
     var age by remember { mutableStateOf(patient?.age?.toString() ?: "") }
     var gender by remember { mutableStateOf(patient?.gender ?: "Masculino") }
     var condition by remember { mutableStateOf(patient?.condition ?: "") }
+    var observations by remember { mutableStateOf(patient?.observations ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -285,7 +293,8 @@ fun EditPatientDialog(
                             name = name,
                             age = age.toIntOrNull() ?: it.age,
                             gender = gender,
-                            condition = condition
+                            condition = condition,
+                            observations = observations
                         )
                     )
                 }
@@ -302,18 +311,20 @@ fun EditPatientDialog(
             Text("Editar paciente")
         },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name.toString(),
                     onValueChange = { name = it },
-                    label = { Text("Nome") }
+                    label = { Text("Nome") },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
                     value = age,
                     onValueChange = { age = it },
                     label = { Text("Idade") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
 
                 GenderDropdown(
@@ -322,10 +333,18 @@ fun EditPatientDialog(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
 
+                ConditionDropdown(
+                    selectedCondition = condition,
+                    onConditionSelected = { condition = it },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                )
+
                 OutlinedTextField(
-                    value = condition.toString(),
-                    onValueChange = { condition = it },
-                    label = { Text("Condição") }
+                    value = observations,
+                    onValueChange = { observations = it },
+                    label = { Text("Observações") },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(100.dp),
+                    maxLines = 4
                 )
             }
         }
@@ -406,12 +425,21 @@ private fun PatientItem(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Paciente",
-                        tint = Color(0xFF7E57C2),
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (patient.photoBase64.isNotBlank()) {
+                        AsyncImage(
+                            model = ImageCompressor.decodeBase64ToByteArray(patient.photoBase64),
+                            contentDescription = "Foto",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Paciente",
+                            tint = Color(0xFF7E57C2),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
 
@@ -431,7 +459,7 @@ private fun PatientItem(
                 )
             }
 
-            IconButton(onClick = onEdit) {
+            TooltipIconButton(tooltipText = "Editar", onClick = onEdit) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = "Editar",
@@ -439,7 +467,7 @@ private fun PatientItem(
                 )
             }
 
-            IconButton(onClick = onDelete) {
+            TooltipIconButton(tooltipText = "Excluir", onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Excluir",

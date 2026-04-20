@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.project.ui.components.TooltipIconButton
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +51,7 @@ fun EcomapaFormScreen(
             TopAppBar(
                 title = { Text("Formulário - Ecomapa", fontSize = 18.sp, fontWeight = FontWeight.Medium) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 },
@@ -224,10 +226,10 @@ fun SupportNetworkItem(
         }
 
         Row {
-            IconButton(onClick = onEdit) {
+            TooltipIconButton(tooltipText = "Editar", onClick = onEdit) {
                 Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.Black)
             }
-            IconButton(onClick = onDelete) {
+            TooltipIconButton(tooltipText = "Excluir", onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Black)
             }
         }

@@ -7,13 +7,17 @@ data class Genograma(
     @DocumentId
     val id: String = "",
     val patientId: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val title: String = "",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     fun toMap(): Map<String, Any> {
         return mapOf(
             "id" to id,
             "patientId" to patientId,
-            "createdAt" to createdAt
+            "title" to title,
+            "createdAt" to createdAt,
+            "updatedAt" to updatedAt
         )
     }
 
@@ -22,7 +26,9 @@ data class Genograma(
             return Genograma(
                 id = snapshot.id,
                 patientId = snapshot.getString("patientId") ?: "",
-                createdAt = snapshot.getLong("createdAt") ?: System.currentTimeMillis()
+                title = snapshot.getString("title") ?: "",
+                createdAt = snapshot.getLong("createdAt") ?: System.currentTimeMillis(),
+                updatedAt = snapshot.getLong("updatedAt") ?: snapshot.getLong("createdAt") ?: System.currentTimeMillis()
             )
         }
     }

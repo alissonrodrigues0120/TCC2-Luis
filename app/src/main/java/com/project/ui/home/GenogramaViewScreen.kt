@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +46,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.FamilyMember
 import kotlin.math.roundToInt
 
@@ -90,12 +93,12 @@ fun GenogramaViewScreen(
             TopAppBar(
                 title = { Text("Visualizador", fontSize = 18.sp, fontWeight = FontWeight.Medium) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
+                    TooltipIconButton(tooltipText = "Baixar Imagem", onClick = {
                         val bitmap = generateGenogramaBitmap(
                             members = state.members,
                             unions = state.unions,
@@ -106,7 +109,7 @@ fun GenogramaViewScreen(
                         )
                         saveGenogramaToGallery(context, bitmap, "Paciente_$patientId")
                     }) {
-                        Text("Baixar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF512DA8), modifier = Modifier.padding(end = 16.dp))
+                        Icon(Icons.Default.Share, contentDescription = "Salvar na Galeria", tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -437,7 +440,7 @@ fun GenogramaViewScreen(
                     // UNIÕES DELE
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Casamentos & Uniões", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { editingUnionId = null; showUnionDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
+                        TooltipIconButton(tooltipText = "Add", onClick = { editingUnionId = null; showUnionDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
                     }
                     state.unions.filter { it.membroA == sm.id || it.membroB == sm.id }.forEach { un ->
                         val pt = if(un.membroA == sm.id) state.members.find{ it.id == un.membroB }?.nome else state.members.find{ it.id == un.membroA }?.nome
@@ -451,7 +454,7 @@ fun GenogramaViewScreen(
                     // FILIAÇÕES DELE
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Relações Familiares (Pai/Mãe/Filho)", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { editingFiliationId = null; showFiliationDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
+                        TooltipIconButton(tooltipText = "Add", onClick = { editingFiliationId = null; showFiliationDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
                     }
                     state.filiations.filter { it.filhoId == sm.id || it.paiId == sm.id || it.maeId == sm.id }.forEach { fil ->
                         val role = if(fil.filhoId == sm.id) "É Filho de: ${state.members.find{ it.id == fil.paiId }?.nome} e ${state.members.find{ it.id == fil.maeId }?.nome}" else "É Pai/Mãe de: ${state.members.find{ it.id == fil.filhoId }?.nome}"
@@ -465,7 +468,7 @@ fun GenogramaViewScreen(
                     // LAÇOS EMOCIONAIS DELE
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Traços Psicossociais", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { editingBondId = null; showEmotionalDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
+                        TooltipIconButton(tooltipText = "Add", onClick = { editingBondId = null; showEmotionalDialog = true }) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Color(0xFF3F51B5)) }
                     }
                     state.emotionalBonds.filter { it.membroAId == sm.id || it.membroBId == sm.id }.forEach { bond ->
                         val target = if(bond.membroAId == sm.id) state.members.find{ it.id == bond.membroBId }?.nome else state.members.find{ it.id == bond.membroAId }?.nome

@@ -21,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,6 +58,8 @@ import kotlin.math.sin
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
+import com.project.ui.components.TooltipIconButton
+
 
 data class CategoryStyle(val bg: Color, val border: Color, val icon: String)
 
@@ -122,13 +126,13 @@ fun EcomapaViewScreen(
             TopAppBar(
                 title = { Text("Visualizador", fontSize = 18.sp, fontWeight = FontWeight.Medium) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    TooltipIconButton(tooltipText = "Voltar", onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    IconButton(onClick = {
+                    TooltipIconButton(tooltipText = "Baixar Imagem", onClick = {
                         val bitmap = generateEcomapaBitmap(
                             networks = networks,
                             nodePositions = nodePositions,
@@ -138,8 +142,7 @@ fun EcomapaViewScreen(
                         )
                         saveBitmapToGallery(context, bitmap, patientName)
                     }) {
-                        // Simulating a Download Icon 
-                        Text("Baixar", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF512DA8), modifier = Modifier.padding(end = 16.dp))
+                        Icon(Icons.Default.Share, contentDescription = "Salvar na Galeria", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             )

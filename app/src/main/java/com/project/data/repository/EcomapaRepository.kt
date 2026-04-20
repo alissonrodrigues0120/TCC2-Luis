@@ -43,12 +43,21 @@ class EcomapaRepository(private val userId: String) {
         }
     }
 
-    suspend fun createEcomapa(patientId: String): String? {
+    suspend fun renameEcomapa(patientId: String, ecomapaId: String, newTitle: String) {
+        if (!isValidUserId) return
+        try {
+            getEcomapasCollection(patientId)?.document(ecomapaId)?.update("title", newTitle)?.await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun createEcomapa(patientId: String, title: String = ""): String? {
         if (!isValidUserId) return null
         return try {
             val collection = getEcomapasCollection(patientId) ?: return null
             val docRef = collection.document()
-            val ecomapa = Ecomapa(id = docRef.id, patientId = patientId)
+            val ecomapa = Ecomapa(id = docRef.id, patientId = patientId, title = title)
             docRef.set(ecomapa.toMap())
             docRef.id
         } catch (e: Exception) {
@@ -139,6 +148,37 @@ class EcomapaRepository(private val userId: String) {
         } catch (e: Exception) {
             e.printStackTrace()
             Pair(emptyList(), emptyList())
+        }
+    }
+    suspend fun duplicateEcomapa(patientId: String, originalEcomapaId: String, newTitle: String): String? {
+        if (!isValidUserId) return null
+        return try {
+            val collection = getEcomapasCollection(patientId) ?: return null
+            val docRef = collection.document()
+            val newId = docRef.id
+            
+            val originalDoc = collection.document(originalEcomapaId).get().await()
+            val oEco = Ecomapa.fromSnapshot(originalDoc)
+            val newEcomapa = Ecomapa(
+                id = newId, 
+                patientId = patientId, 
+                title = newTitle
+            )
+            docRef.set(newEcomapa.toMap())
+            
+            val networksSnap = collection.document(originalEcomapaId).collection("supportNetworks").get().await()
+            
+            networksSnap.documents.forEach { doc ->
+                val network = SupportNetwork.fromSnapshot(doc)
+                addSupportNetwork(patientId, newId, network.copy(
+                    id = java.util.UUID.randomUUID().toString(),
+                    ecomapaId = newId
+                ))
+            }
+            newId
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }

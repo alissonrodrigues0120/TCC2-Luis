@@ -3,6 +3,8 @@ package com.project.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.project.ui.components.TooltipIconButton
+
 import com.project.data.model.EmotionalBond
 import com.project.data.model.FamilyMember
 import com.project.data.model.GenogramFiliation
@@ -42,7 +44,7 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
 
     fun createGenograma(patient: Patient, onCreated: (String) -> Unit) {
         viewModelScope.launch {
-            val idx = repository.createGenograma(patient.id)
+            val idx = repository.createGenograma(patient.id, "Genograma Clínico")
             if (idx != null) {
                 // Auto-povoar o Ego Offline First
                 val egoSexo = when(patient.gender.lowercase()) {
@@ -134,6 +136,19 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
     }
     fun deleteEmotionalBond(patientId: String, genogramaId: String, bondId: String) {
         viewModelScope.launch { repository.deleteEmotionalBond(patientId, genogramaId, bondId) }
+    }
+
+    fun duplicateGenograma(patientId: String, originalGenogramaId: String, currentTitle: String) {
+        viewModelScope.launch {
+            val title = if (currentTitle.isBlank()) "Genograma Clínico" else currentTitle
+            repository.duplicateGenograma(patientId, originalGenogramaId, "$title Cópia")
+        }
+    }
+
+    fun renameGenograma(patientId: String, genogramaId: String, newTitle: String) {
+        viewModelScope.launch {
+            repository.renameGenograma(patientId, genogramaId, newTitle)
+        }
     }
 }
 
