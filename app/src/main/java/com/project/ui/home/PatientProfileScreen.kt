@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -542,12 +543,12 @@ fun PatientProfileScreen(
                         androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize()) {
                             if (ecomapas.isEmpty()) {
                                 item {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("Nenhum ecomapa criado.", fontSize = 14.sp, color = Color.Gray)
-                                    }
+                                    EmptyListState(
+                                        title = "Nenhum ecomapa criado.",
+                                        subtitle = "Comece criando um ecomapa para mapear as redes de apoio deste paciente.",
+                                        buttonText = "Criar Ecomapa",
+                                        onClick = { onCreateEcomapa() }
+                                    )
                                 }
                             } else {
                                 items(ecomapas.size) { index ->
@@ -579,12 +580,12 @@ fun PatientProfileScreen(
                         androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize()) {
                             if (genogramasState.genogramas.isEmpty()) {
                                 item {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("Nenhum genograma criado.", fontSize = 14.sp, color = Color.Gray)
-                                    }
+                                    EmptyListState(
+                                        title = "Nenhum genograma criado.",
+                                        subtitle = "Inicie a construção da árvore genealógica deste paciente.",
+                                        buttonText = "Criar Genograma",
+                                        onClick = { patient?.let { onCreateGenograma(it) } }
+                                    )
                                 }
                             } else {
                                 items(genogramasState.genogramas.size) { index ->
@@ -668,18 +669,32 @@ fun DocumentItem(
             )
         }
 
-        Row {
-            TooltipIconButton(tooltipText = "Duplicar", onClick = onDuplicate) {
-                Icon(Icons.Default.Add, contentDescription = "Copiar", tint = MaterialTheme.colorScheme.onSurface)
+        var expanded by remember { mutableStateOf(false) }
+        
+        Box {
+            IconButton(onClick = { expanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "Mais Opções", tint = MaterialTheme.colorScheme.onSurface)
             }
-            TooltipIconButton(tooltipText = "Editar", onClick = onEdit) {
-                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.onSurface)
-            }
-            TooltipIconButton(tooltipText = "Excluir", onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Red)
-            }
-            TooltipIconButton(tooltipText = "Visualizar", onClick = onView) {
-                Icon(Icons.Default.Search, contentDescription = "Visualizar", tint = MaterialTheme.colorScheme.primary)
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Visualizar") },
+                    onClick = { expanded = false; onView() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Editar") },
+                    onClick = { expanded = false; onEdit() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Copiar") },
+                    onClick = { expanded = false; onDuplicate() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Deletar", color = Color.Red) },
+                    onClick = { expanded = false; onDelete() }
+                )
             }
         }
     }
@@ -710,4 +725,41 @@ fun DeleteProfileConfirmationDialog(
             }
         }
     )
+}
+
+@Composable
+fun EmptyListState(
+    title: String,
+    subtitle: String,
+    buttonText: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Add,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(buttonText, color = Color.White)
+                }
+            }
+        }
+    }
 }

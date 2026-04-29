@@ -113,8 +113,28 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
             if (id != null) onSuccess(id)
         }
     }
+
+    fun updateMemberPosition(patientId: String, genogramaId: String, memberId: String, offsetX: Float, offsetY: Float) {
+        viewModelScope.launch {
+            val member = state.value.members.find { it.id == memberId } ?: return@launch
+            repository.saveMember(patientId, genogramaId, member.copy(offsetX = offsetX, offsetY = offsetY))
+        }
+    }
     fun deleteMember(patientId: String, genogramaId: String, memberId: String) {
-        viewModelScope.launch { repository.deleteMember(patientId, genogramaId, memberId) }
+        viewModelScope.launch {
+            // Cascade delete: Remover uniões, filiações e laços emocionais atrelados
+            state.value.unions.filter { it.membroA == memberId || it.membroB == memberId }.forEach {
+                repository.deleteUnion(patientId, genogramaId, it.id)
+            }
+            state.value.filiations.filter { it.paiId == memberId || it.maeId == memberId || it.filhoId == memberId }.forEach {
+                repository.deleteFiliation(patientId, genogramaId, it.id)
+            }
+            state.value.emotionalBonds.filter { it.membroAId == memberId || it.membroBId == memberId }.forEach {
+                repository.deleteEmotionalBond(patientId, genogramaId, it.id)
+            }
+            // Deletar o membro em si
+            repository.deleteMember(patientId, genogramaId, memberId) 
+        }
     }
 
     fun saveUnion(patientId: String, genogramaId: String, union: GenogramUnion) {

@@ -62,6 +62,13 @@ class EcomapaViewModel(private val repository: EcomapaRepository) : ViewModel() 
         }
     }
 
+    fun updateNetworkPosition(patientId: String, ecomapaId: String, networkId: String, posX: Float, posY: Float) {
+        viewModelScope.launch {
+            val network = _supportNetworks.value.find { it.id == networkId } ?: return@launch
+            repository.addSupportNetwork(patientId, ecomapaId, network.copy(posX = posX, posY = posY))
+        }
+    }
+
     fun deleteSupportNetwork(patientId: String, ecomapaId: String, networkId: String) {
         viewModelScope.launch {
             repository.deleteSupportNetwork(patientId, ecomapaId, networkId)

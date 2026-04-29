@@ -338,3 +338,83 @@ fun FamilyMemberItem(
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuickAddMemberDialog(
+    onDismiss: () -> Unit,
+    onSave: (FamilyMember) -> Unit
+) {
+    var nome by remember { mutableStateOf("") }
+    var sexo by remember { mutableStateOf("M") }
+    var vivo by remember { mutableStateOf(true) }
+    var nascimento by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Criação Rápida de Membro") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = nome,
+                    onValueChange = { nome = it },
+                    label = { Text("Nome do Membro") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Column {
+                    Text("Gênero", style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = sexo == "M", onClick = { sexo = "M" })
+                        Text("M")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        RadioButton(selected = sexo == "F", onClick = { sexo = "F" })
+                        Text("F")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        RadioButton(selected = sexo == "Outro", onClick = { sexo = "Outro" })
+                        Text("Outros")
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = vivo, onCheckedChange = { vivo = it })
+                    Text("Membro está vivo")
+                }
+
+                OutlinedTextField(
+                    value = nascimento,
+                    onValueChange = { nascimento = it },
+                    label = { Text("Ano de Nasc. (Ex: 1990)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (nome.isNotBlank()) {
+                        val novoMembro = FamilyMember(
+                            nome = nome,
+                            sexo = sexo,
+                            vivo = vivo,
+                            nascimento = nascimento
+                        )
+                        onSave(novoMembro)
+                    }
+                }
+            ) {
+                Text("Salvar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}

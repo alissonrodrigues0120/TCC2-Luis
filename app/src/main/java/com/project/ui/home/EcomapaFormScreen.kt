@@ -126,16 +126,12 @@ fun EcomapaFormScreen(
             }
 
             if (networks.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Nenhuma instituição cadastrada ainda.",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
+                EmptyListState(
+                    title = "Nenhuma instituição cadastrada ainda.",
+                    subtitle = "Adicione redes de apoio, serviços, saúde ou vínculos externos do paciente.",
+                    buttonText = "Adicionar Instituição",
+                    onClick = { onAddInstitution() }
+                )
             } else {
                 networks.forEach { network ->
                     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())

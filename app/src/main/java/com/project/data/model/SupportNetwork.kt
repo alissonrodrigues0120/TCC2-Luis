@@ -16,10 +16,12 @@ data class SupportNetwork(
     val description: String = "",
     val supportTypes: List<String> = emptyList(),
     val generatesStress: Boolean = false,
+    val posX: Float? = null,
+    val posY: Float? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toMap(): Map<String, Any> {
-        return mapOf(
+        val map = mutableMapOf<String, Any>(
             "ecomapaId" to ecomapaId,
             "patientId" to patientId,
             "name" to name,
@@ -33,6 +35,9 @@ data class SupportNetwork(
             "generatesStress" to generatesStress,
             "createdAt" to createdAt
         )
+        if (posX != null) map["posX"] = posX
+        if (posY != null) map["posY"] = posY
+        return map
     }
 
     companion object {
@@ -51,6 +56,8 @@ data class SupportNetwork(
                 description = snapshot.getString("description") ?: "",
                 supportTypes = (snapshot.get("supportTypes") as? List<String>) ?: emptyList(),
                 generatesStress = snapshot.getBoolean("generatesStress") ?: false,
+                posX = snapshot.getDouble("posX")?.toFloat(),
+                posY = snapshot.getDouble("posY")?.toFloat(),
                 createdAt = snapshot.getLong("createdAt") ?: System.currentTimeMillis()
             )
         }

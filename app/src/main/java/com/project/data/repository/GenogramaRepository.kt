@@ -255,7 +255,10 @@ class GenogramaRepository(private val userId: String) {
                     id = java.util.UUID.randomUUID().toString(),
                     genogramaId = newId,
                     uniaoOrigemId = unionIdMap[f.uniaoOrigemId] ?: f.uniaoOrigemId,
-                    filhoId = memberIdMap[f.filhoId] ?: f.filhoId
+                    filhoId = memberIdMap[f.filhoId] ?: f.filhoId,
+                    paiId = memberIdMap[f.paiId] ?: f.paiId,
+                    maeId = memberIdMap[f.maeId] ?: f.maeId,
+                    parGemelarId = memberIdMap[f.parGemelarId] ?: f.parGemelarId
                 ))
             }
             

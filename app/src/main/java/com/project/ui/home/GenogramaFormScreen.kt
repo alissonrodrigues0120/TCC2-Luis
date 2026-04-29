@@ -158,9 +158,12 @@ fun GenogramaFormScreen(
                             Text(text = "Membros Familiares Cadastrados", fontSize = 16.sp, fontWeight = FontWeight.Normal)
                             Spacer(modifier = Modifier.height(16.dp))
                             if (state.members.isEmpty()) {
-                                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                                    Text("Nenhum membro familiar cadastrado.", fontSize = 14.sp, color = Color.Gray)
-                                }
+                                EmptyListState(
+                                    title = "Nenhum membro cadastrado.",
+                                    subtitle = "Adicione um familiar para iniciar a construção do genograma.",
+                                    buttonText = "Adicionar Familiar",
+                                    onClick = onAddMember
+                                )
                             } else {
                                 state.members.forEach { member ->
                                     val generationLvl = when(member.geracao) {
@@ -179,9 +182,12 @@ fun GenogramaFormScreen(
                             Text(text = "Filiações Familiares (Parentescos)", fontSize = 16.sp, fontWeight = FontWeight.Normal)
                             Spacer(modifier = Modifier.height(16.dp))
                             if (state.filiations.isEmpty()) {
-                                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                                    Text("Sem vínculos biológicos/adotivos cadastrados.", fontSize = 14.sp, color = Color.Gray)
-                                }
+                                EmptyListState(
+                                    title = "Sem parentescos biológicos/adotivos.",
+                                    subtitle = "Vincule pais e filhos para formar a hierarquia familiar.",
+                                    buttonText = "Adicionar Filiação",
+                                    onClick = { editingFiliationId = null; showFiliationDialog = true }
+                                )
                             } else {
                                 state.filiations.forEach { filiation ->
                                     val nomeFilho = state.members.find { it.id == filiation.filhoId }?.nome ?: "Desconhecido"
@@ -200,9 +206,12 @@ fun GenogramaFormScreen(
                             Text(text = "Casamentos e Uniões Vinculadas", fontSize = 16.sp, fontWeight = FontWeight.Normal)
                             Spacer(modifier = Modifier.height(16.dp))
                             if (state.unions.isEmpty()) {
-                                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                                    Text("Sem uniões cadastradas.", fontSize = 14.sp, color = Color.Gray)
-                                }
+                                EmptyListState(
+                                    title = "Sem uniões conjugais.",
+                                    subtitle = "Registre os casamentos ou uniões estáveis entre membros da família.",
+                                    buttonText = "Adicionar União Marital",
+                                    onClick = { editingUnionId = null; showUnionDialog = true }
+                                )
                             } else {
                                 state.unions.forEach { union ->
                                     val nomeA = state.members.find { it.id == union.membroA }?.nome ?: "Desconhecido"
@@ -220,9 +229,12 @@ fun GenogramaFormScreen(
                             Text(text = "Laços Emocionais (Afinidades)", fontSize = 16.sp, fontWeight = FontWeight.Normal)
                             Spacer(modifier = Modifier.height(16.dp))
                             if (state.emotionalBonds.isEmpty()) {
-                                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                                    Text("Sem vínculos emocionais sistêmicos.", fontSize = 14.sp, color = Color.Gray)
-                                }
+                                EmptyListState(
+                                    title = "Sem vínculos emocionais.",
+                                    subtitle = "Mapeie afinidades, distanciamentos ou conflitos entre parentes.",
+                                    buttonText = "Adicionar Laço Emocional",
+                                    onClick = { editingBondId = null; showEmotionalDialog = true }
+                                )
                             } else {
                                 state.emotionalBonds.forEach { bond ->
                                     val nomeA = state.members.find { it.id == bond.membroAId }?.nome ?: "Desconhecido"

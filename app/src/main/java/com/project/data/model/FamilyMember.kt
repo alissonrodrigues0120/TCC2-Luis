@@ -19,6 +19,8 @@ data class FamilyMember(
     val condicoesSaude: List<String> = emptyList(),
     val observacoes: String = "",
     val isEgo: Boolean = false, // True se este nó for o Paciente principal
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toMap(): Map<String, Any> = mapOf(
@@ -35,6 +37,8 @@ data class FamilyMember(
         "condicoesSaude" to condicoesSaude,
         "observacoes" to observacoes,
         "isEgo" to isEgo,
+        "offsetX" to offsetX,
+        "offsetY" to offsetY,
         "createdAt" to createdAt
     )
 
@@ -56,6 +60,8 @@ data class FamilyMember(
                 condicoesSaude = (snapshot.get("condicoesSaude") as? List<String>) ?: emptyList(),
                 observacoes = snapshot.getString("observacoes") ?: "",
                 isEgo = snapshot.getBoolean("isEgo") ?: false,
+                offsetX = snapshot.getDouble("offsetX")?.toFloat() ?: 0f,
+                offsetY = snapshot.getDouble("offsetY")?.toFloat() ?: 0f,
                 createdAt = snapshot.getLong("createdAt") ?: System.currentTimeMillis()
             )
         }

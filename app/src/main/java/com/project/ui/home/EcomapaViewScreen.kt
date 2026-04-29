@@ -21,8 +21,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FilterCenterFocus
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -112,10 +113,14 @@ fun EcomapaViewScreen(
 
             networks.forEachIndexed { index, network ->
                 if (!nodePositions.containsKey(network.id)) {
-                    val angle = index * angleStep
-                    val x = (orbitRadius * cos(angle)).toFloat()
-                    val y = (orbitRadius * sin(angle)).toFloat()
-                    nodePositions[network.id] = Offset(x, y)
+                    if (network.posX != null && network.posY != null) {
+                        nodePositions[network.id] = Offset(network.posX, network.posY)
+                    } else {
+                        val angle = index * angleStep
+                        val x = (orbitRadius * cos(angle)).toFloat()
+                        val y = (orbitRadius * sin(angle)).toFloat()
+                        nodePositions[network.id] = Offset(x, y)
+                    }
                 }
             }
         }
@@ -146,6 +151,17 @@ fun EcomapaViewScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    scale = 1f
+                    pan = Offset.Zero
+                },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Icon(Icons.Default.FilterCenterFocus, contentDescription = "Centralizar Visão")
+            }
         }
     ) { innerPadding ->
         BoxWithConstraints(
@@ -225,10 +241,58 @@ fun EcomapaViewScreen(
                                     .offset { IntOffset((absoluteNodeOffset.x - networkRadiusPx).roundToInt(), (absoluteNodeOffset.y - networkRadiusPx).roundToInt()) }
                                     .size(with(density) { (networkRadiusPx * 2).toDp() })
                                     .pointerInput(network.id) {
-                                        detectDragGestures { change, dragAmount ->
+                                        detectDragGestures(
+                                            onDragEnd = {
+                                                // Captura o valor atual e garante que não é nulo.
+                                                // Se for nulo por algum erro bizarro, o 'let' não executa.
+                                                nodePositions[network.id]?.let { currentPos ->
+                                                    var newPos = currentPos // Agora newPos é do tipo 'Offset' (não nulo)
+
+                                                    // 1. Prevenir colisão com o Paciente Central
+                                                    val distToCenter = Math.hypot(newPos.x.toDouble(), newPos.y.toDouble()).toFloat()
+                                                    val minCenterDist = patientRadiusPx + networkRadiusPx + 20f
+                                                    if (distToCenter < minCenterDist && distToCenter > 0.1f) {
+                                                        val factor = minCenterDist / distToCenter
+                                                        newPos = Offset(newPos.x * factor, newPos.y * factor)
+                                                    }
+
+                                                    // 2. Prevenir colisão com outras Redes
+                                                    val minNetworkDist = networkRadiusPx * 2 + 20f
+                                                    var iterations = 0
+                                                    var resolved = false
+
+                                                    while (!resolved && iterations < 5) {
+                                                        resolved = true
+                                                        networks.forEach { otherNet ->
+                                                            if (otherNet.id != network.id) {
+                                                                val otherPos = nodePositions[otherNet.id] ?: return@forEach
+                                                                val dx = newPos.x - otherPos.x
+                                                                val dy = newPos.y - otherPos.y
+                                                                val dist = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+
+                                                                if (dist < minNetworkDist && dist > 0.1f) {
+                                                                    resolved = false
+                                                                    val overlap = minNetworkDist - dist
+                                                                    val pushX = (dx / dist) * overlap
+                                                                    val pushY = (dy / dist) * overlap
+                                                                    // Aqui newPos não dará mais erro, pois é Offset fixo
+                                                                    newPos = Offset(newPos.x + pushX, newPos.y + pushY)
+                                                                } else if (dist <= 0.1f) {
+                                                                    resolved = false
+                                                                    newPos = Offset(newPos.x + minNetworkDist, newPos.y)
+                                                                }
+                                                            }
+                                                        }
+                                                        iterations++
+                                                    }
+                                                    // 3. Atualiza o mapa com o valor final processado
+                                                    nodePositions[network.id] = newPos
+                                                    viewModel.updateNetworkPosition(patientId, ecomapaId, network.id, newPos.x, newPos.y)
+                                                }
+                                            }
+                                        ) { change, dragAmount ->
                                             change.consume()
-                                            val currentPos = nodePositions[network.id] ?: Offset.Zero
-                                            nodePositions[network.id] = currentPos + dragAmount
+                                            nodePositions[network.id] = (nodePositions[network.id] ?: Offset.Zero) + dragAmount
                                         }
                                     }
                                     .clip(CircleShape)
