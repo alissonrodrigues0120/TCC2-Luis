@@ -170,6 +170,10 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
             repository.renameGenograma(patientId, genogramaId, newTitle)
         }
     }
+
+    suspend fun exportGenogramasData(patientId: String): GenogramaRepository.GenogramaExportData {
+        return repository.exportGenogramasData(patientId)
+    }
 }
 
 class GenogramaViewModelFactory(private val repository: GenogramaRepository) : ViewModelProvider.Factory {

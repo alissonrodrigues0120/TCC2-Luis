@@ -3,6 +3,8 @@ package com.project.data.repository
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.Source
 import com.project.data.model.EmotionalBond
 import com.project.data.model.FamilyMember
 import com.project.data.model.GenogramFiliation
@@ -36,6 +38,22 @@ class GenogramaRepository(private val userId: String) {
 
     private fun getEmotionalBondsCollection(patientId: String, genogramaId: String) =
         getGenogramasCollection(patientId)?.document(genogramaId)?.collection("emotional_bonds")
+
+    private suspend fun getCacheFirst(query: Query): QuerySnapshot {
+        val cached = try {
+            query.get(Source.CACHE).await()
+        } catch (e: Exception) {
+            null
+        }
+
+        if (cached != null && !cached.isEmpty) return cached
+
+        return try {
+            query.get().await()
+        } catch (e: Exception) {
+            cached ?: throw e
+        }
+    }
 
     private suspend fun touchPatientUpdate(patientId: String) {
         if (isValidUserId) {
@@ -83,7 +101,7 @@ class GenogramaRepository(private val userId: String) {
             val collection = getGenogramasCollection(patientId) ?: return null
             val docRef = collection.document()
             val genograma = Genograma(id = docRef.id, patientId = patientId, title = title)
-            docRef.set(genograma.toMap()) // Aguarda para ter certeza antes de atualizar a data
+            docRef.set(genograma.toMap())
             touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
@@ -276,6 +294,50 @@ class GenogramaRepository(private val userId: String) {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    data class GenogramaExportData(
+        val genogramas: List<Genograma>,
+        val members: List<FamilyMember>,
+        val unions: List<GenogramUnion>,
+        val filiations: List<GenogramFiliation>,
+        val bonds: List<EmotionalBond>
+    )
+
+    suspend fun exportGenogramasData(patientId: String): GenogramaExportData {
+        if (!isValidUserId) return GenogramaExportData(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        return try {
+            val genogramasList = mutableListOf<Genograma>()
+            val membersList = mutableListOf<FamilyMember>()
+            val unionsList = mutableListOf<GenogramUnion>()
+            val filiationsList = mutableListOf<GenogramFiliation>()
+            val bondsList = mutableListOf<EmotionalBond>()
+
+            val collection = getGenogramasCollection(patientId) ?: return GenogramaExportData(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            val genogramasSnap = getCacheFirst(collection)
+
+            for (doc in genogramasSnap.documents) {
+                val genograma = Genograma.fromSnapshot(doc)
+                genogramasList.add(genograma)
+
+                val membersSnap = getMembersCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                membersSnap?.documents?.forEach { membersList.add(FamilyMember.fromSnapshot(it)) }
+
+                val unionsSnap = getUnionsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                unionsSnap?.documents?.forEach { unionsList.add(GenogramUnion.fromSnapshot(it)) }
+
+                val filiationsSnap = getFiliationsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                filiationsSnap?.documents?.forEach { filiationsList.add(GenogramFiliation.fromSnapshot(it)) }
+
+                val bondsSnap = getEmotionalBondsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                bondsSnap?.documents?.forEach { bondsList.add(EmotionalBond.fromSnapshot(it)) }
+            }
+
+            GenogramaExportData(genogramasList, membersList, unionsList, filiationsList, bondsList)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            GenogramaExportData(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
         }
     }
 }

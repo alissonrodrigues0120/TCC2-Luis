@@ -62,7 +62,7 @@ class PatientRepository(private val userId: String) {
             val collection = patientsCollection ?: return null
             val documentRef = collection.document()
             val patientWithId = patient.copy(userId = userId, id = documentRef.id)
-            documentRef.set(patientWithId.toMap()).await()
+            documentRef.set(patientWithId.toMap())
             documentRef.id
         } catch (e: Exception) {
             e.printStackTrace()
@@ -77,7 +77,7 @@ class PatientRepository(private val userId: String) {
         return try {
             val collection = patientsCollection ?: return false
             val documentRef = collection.document(patient.id)
-            documentRef.update(patient.toMap()).await()
+            documentRef.update(patient.toMap())
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -91,7 +91,7 @@ class PatientRepository(private val userId: String) {
 
         return try {
             val collection = patientsCollection ?: return false
-            collection.document(patientId).delete().await()
+            collection.document(patientId).delete()
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -111,7 +111,7 @@ class PatientRepository(private val userId: String) {
                 val patientWithId = patient.copy(userId = userId, id = docRef.id)
                 batch.set(docRef, patientWithId.toMap())
             }
-            batch.commit().await()
+            batch.commit()
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -124,7 +124,7 @@ class PatientRepository(private val userId: String) {
 
         return try {
             val collection = patientsCollection ?: return false
-            collection.document(patientId).update("remoteLastUpdate", System.currentTimeMillis()).await()
+            collection.document(patientId).update("remoteLastUpdate", System.currentTimeMillis())
             true
         } catch (e: Exception) {
             e.printStackTrace()

@@ -3,6 +3,8 @@ package com.project.data.repository
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.Source
 import com.project.data.model.Ecomapa
 import com.project.data.model.SupportNetwork
 import kotlinx.coroutines.channels.awaitClose
@@ -24,6 +26,22 @@ class EcomapaRepository(private val userId: String) {
     // Base Collection for an Ecomapa's Support Networks
     private fun getSupportNetworksCollection(patientId: String, ecomapaId: String) =
         getEcomapasCollection(patientId)?.document(ecomapaId)?.collection("supportNetworks")
+
+    private suspend fun getCacheFirst(query: Query): QuerySnapshot {
+        val cached = try {
+            query.get(Source.CACHE).await()
+        } catch (e: Exception) {
+            null
+        }
+
+        if (cached != null && !cached.isEmpty) return cached
+
+        return try {
+            query.get().await()
+        } catch (e: Exception) {
+            cached ?: throw e
+        }
+    }
 
 
 
@@ -154,12 +172,12 @@ class EcomapaRepository(private val userId: String) {
             val supportNetworksSet = mutableListOf<SupportNetwork>()
             
             val collection = getEcomapasCollection(patientId) ?: return Pair(emptyList(), emptyList())
-            val ecomapasSnap = collection.get().await()
+            val ecomapasSnap = getCacheFirst(collection)
             for (doc in ecomapasSnap.documents) {
                 val ecomapa = Ecomapa.fromSnapshot(doc)
                 ecomapasSet.add(ecomapa)
                 
-                val networksSnap = collection.document(ecomapa.id).collection("supportNetworks").get().await()
+                val networksSnap = getCacheFirst(collection.document(ecomapa.id).collection("supportNetworks"))
                 supportNetworksSet.addAll(networksSnap.documents.mapNotNull { SupportNetwork.fromSnapshot(it) })
             }
             Pair(ecomapasSet, supportNetworksSet)

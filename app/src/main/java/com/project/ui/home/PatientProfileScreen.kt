@@ -396,8 +396,8 @@ fun PatientProfileScreen(
                     TooltipIconButton(tooltipText = "Compartilhar", onClick = { 
                         coroutineScope.launch {
                             val syncManager = com.project.data.repository.DataSyncManager(context)
-                            val (ecomapas, networks) = ecomapaViewModel.exportEcomapasData(patientId)
-                            val uri = syncManager.exportPatientData(patient, ecomapas, networks)
+                            val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+                            val uri = syncManager.exportPatientData(patient, userId)
                             if (uri != null) {
                                 syncManager.shareExportedFile(uri)
                             }
