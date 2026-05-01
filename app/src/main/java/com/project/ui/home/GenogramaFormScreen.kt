@@ -46,18 +46,18 @@ fun GenogramaFormScreen(
     modifier: Modifier = Modifier
 ) {
     var isMenuExpanded by remember { mutableStateOf(false) }
-    
+
     // Deletion states
     var memberToDelete by remember { mutableStateOf<com.project.data.model.FamilyMember?>(null) }
     var unionToDelete by remember { mutableStateOf<com.project.data.model.GenogramUnion?>(null) }
     var filiationToDelete by remember { mutableStateOf<com.project.data.model.GenogramFiliation?>(null) }
     var bondToDelete by remember { mutableStateOf<com.project.data.model.EmotionalBond?>(null) }
-    
+
     // Creation/Edition Modals states
     var showUnionDialog by remember { mutableStateOf(false) }
     var showFiliationDialog by remember { mutableStateOf(false) }
     var showEmotionalDialog by remember { mutableStateOf(false) }
-    
+
     // IDs for editing (if null, translates to create new)
     var editingUnionId by remember { mutableStateOf<String?>(null) }
     var editingFiliationId by remember { mutableStateOf<String?>(null) }
@@ -96,28 +96,65 @@ fun GenogramaFormScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(bottom = 16.dp)
                     ) {
-                        Button(onClick = { isMenuExpanded = false; onAddMember() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))) {
-                            Text("Adicionar Familiar", color = Color.White)
+                        when (pagerState.currentPage) {
+                            0 -> GenogramaMenuButton(
+                                text = "Adicionar Familiar",
+                                onClick = {
+                                    isMenuExpanded = false
+                                    onAddMember()
+                                }
+                            )
+                            1 -> GenogramaMenuButton(
+                                text = "Adicionar Filiação",
+                                onClick = {
+                                    isMenuExpanded = false
+                                    editingFiliationId = null
+                                    showFiliationDialog = true
+                                }
+                            )
+                            2 -> GenogramaMenuButton(
+                                text = "União",
+                                onClick = {
+                                    isMenuExpanded = false
+                                    editingUnionId = null
+                                    showUnionDialog = true
+                                }
+                            )
+                            3 -> GenogramaMenuButton(
+                                text = "Laço",
+                                onClick = {
+                                    isMenuExpanded = false
+                                    editingBondId = null
+                                    showEmotionalDialog = true
+                                }
+                            )
                         }
-                        Button(onClick = { isMenuExpanded = false; editingUnionId = null; showUnionDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))) {
-                            Text("Adicionar União Marital", color = Color.White)
-                        }
-                        Button(onClick = { isMenuExpanded = false; editingFiliationId = null; showFiliationDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))) {
-                            Text("Adicionar Filiação (Pai/Mãe)", color = Color.White)
-                        }
-                        Button(onClick = { isMenuExpanded = false; editingBondId = null; showEmotionalDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC2577E))) {
-                            Text("Adicionar Laço Emocional", color = Color.White)
-                        }
-                        Button(onClick = { isMenuExpanded = false; onOpenView() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))) {
-                            Text("Renderizar Genograma", color = Color.White)
-                        }
-                        Button(onClick = { isMenuExpanded = false; onBack() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))) {
-                            Text("Salvar / Voltar", color = Color.White)
-                        }
+                        GenogramaMenuButton(
+                            text = "Renderizar",
+                            onClick = {
+                                isMenuExpanded = false
+                                onOpenView()
+                            }
+                        )
+                        GenogramaMenuButton(
+                            text = "Salvar / Voltar",
+                            onClick = {
+                                isMenuExpanded = false
+                                onBack()
+                            }
+                        )
                     }
                 }
-                FloatingActionButton(onClick = { isMenuExpanded = !isMenuExpanded }, containerColor = Color(0xFF512DA8), contentColor = Color.White) {
-                    Icon(imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add, contentDescription = "Menu")
+
+                FloatingActionButton(
+                    onClick = { isMenuExpanded = !isMenuExpanded },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = if (isMenuExpanded) "Fechar menu" else "Abrir menu"
+                    )
                 }
             }
         }
@@ -140,7 +177,7 @@ fun GenogramaFormScreen(
                     )
                 }
             }
-            
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -152,7 +189,7 @@ fun GenogramaFormScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     when (page) {
                         0 -> {
                             Text(text = "Membros Familiares Cadastrados", fontSize = 16.sp, fontWeight = FontWeight.Normal)
@@ -196,7 +233,7 @@ fun GenogramaFormScreen(
                                     FamilyMemberItem(
                                         title = "Filho(a): $nomeFilho", subtitle = "Descende de: $nomePai e $nomeMae | Tipo: ${filiation.tipo}",
                                         isEgo = false,
-                                        onEdit = { editingFiliationId = filiation.id; showFiliationDialog = true }, 
+                                        onEdit = { editingFiliationId = filiation.id; showFiliationDialog = true },
                                         onDelete = { filiationToDelete = filiation }, showEdit = true
                                     )
                                 }
@@ -219,7 +256,7 @@ fun GenogramaFormScreen(
                                     FamilyMemberItem(
                                         title = "$nomeA ↔ $nomeB", subtitle = "Tipo: ${union.tipo} | Status: ${union.status}",
                                         isEgo = false,
-                                        onEdit = { editingUnionId = union.id; showUnionDialog = true }, 
+                                        onEdit = { editingUnionId = union.id; showUnionDialog = true },
                                         onDelete = { unionToDelete = union }, showEdit = true
                                     )
                                 }
@@ -242,39 +279,39 @@ fun GenogramaFormScreen(
                                     FamilyMemberItem(
                                         title = "$nomeA ↔ $nomeB", subtitle = "Aspecto: ${bond.tipo}",
                                         isEgo = false,
-                                        onEdit = { editingBondId = bond.id; showEmotionalDialog = true }, 
+                                        onEdit = { editingBondId = bond.id; showEmotionalDialog = true },
                                         onDelete = { bondToDelete = bond }, showEdit = true
                                     )
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(180.dp))
                 }
             }
 
             // MODALS DE CONFIRM DE EXCLUSAO
             if (memberToDelete != null) {
                 AlertDialog(onDismissRequest = { memberToDelete = null }, title = { Text("Excluir Familiar") }, text = { Text("Deseja remover '${memberToDelete!!.nome}'?") },
-                    confirmButton = { Button(onClick = { viewModel.deleteMember(patientId, genogramaId, memberToDelete!!.id); memberToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))) { Text("Excluir") } },
+                    confirmButton = { Button(onClick = { viewModel.deleteMember(patientId, genogramaId, memberToDelete!!.id); memberToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Excluir") } },
                     dismissButton = { Button(onClick = { memberToDelete = null }) { Text("Cancelar") } }
                 )
             }
             if (unionToDelete != null) {
                 AlertDialog(onDismissRequest = { unionToDelete = null }, title = { Text("Excluir União") }, text = { Text("Deseja deletar este casamento/união?") },
-                    confirmButton = { Button(onClick = { viewModel.deleteUnion(patientId, genogramaId, unionToDelete!!.id); unionToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))) { Text("Excluir") } },
+                    confirmButton = { Button(onClick = { viewModel.deleteUnion(patientId, genogramaId, unionToDelete!!.id); unionToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Excluir") } },
                     dismissButton = { Button(onClick = { unionToDelete = null }) { Text("Cancelar") } }
                 )
             }
             if (filiationToDelete != null) {
                 AlertDialog(onDismissRequest = { filiationToDelete = null }, title = { Text("Excluir Filiação") }, text = { Text("Deseja deletar o registro de parentesco biológico?") },
-                    confirmButton = { Button(onClick = { viewModel.deleteFiliation(patientId, genogramaId, filiationToDelete!!.id); filiationToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))) { Text("Excluir") } },
+                    confirmButton = { Button(onClick = { viewModel.deleteFiliation(patientId, genogramaId, filiationToDelete!!.id); filiationToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Excluir") } },
                     dismissButton = { Button(onClick = { filiationToDelete = null }) { Text("Cancelar") } }
                 )
             }
             if (bondToDelete != null) {
                 AlertDialog(onDismissRequest = { bondToDelete = null }, title = { Text("Excluir Vínculo") }, text = { Text("Deseja deletar a afinidade psicológica?") },
-                    confirmButton = { Button(onClick = { viewModel.deleteEmotionalBond(patientId, genogramaId, bondToDelete!!.id); bondToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))) { Text("Excluir") } },
+                    confirmButton = { Button(onClick = { viewModel.deleteEmotionalBond(patientId, genogramaId, bondToDelete!!.id); bondToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Excluir") } },
                     dismissButton = { Button(onClick = { bondToDelete = null }) { Text("Cancelar") } }
                 )
             }
@@ -286,7 +323,7 @@ fun GenogramaFormScreen(
                     initialUnion = if(editingUnionId != null) state.unions.find { it.id == editingUnionId } else null,
                     prefilledMemberA = null,
                     onDismiss = { showUnionDialog = false; editingUnionId = null },
-                    onSave = { newUnion -> 
+                    onSave = { newUnion ->
                         viewModel.saveUnion(patientId, genogramaId, newUnion)
                         showUnionDialog = false
                         editingUnionId = null
@@ -301,7 +338,7 @@ fun GenogramaFormScreen(
                     members = state.members,
                     initialFiliation = if(editingFiliationId != null) state.filiations.find { it.id == editingFiliationId } else null,
                     onDismiss = { showFiliationDialog = false; editingFiliationId = null },
-                    onSave = { newFiliation -> 
+                    onSave = { newFiliation ->
                         viewModel.saveFiliation(patientId, genogramaId, newFiliation)
                         showFiliationDialog = false
                         editingFiliationId = null
@@ -316,7 +353,7 @@ fun GenogramaFormScreen(
                     members = state.members,
                     initialBond = if(editingBondId != null) state.emotionalBonds.find { it.id == editingBondId } else null,
                     onDismiss = { showEmotionalDialog = false; editingBondId = null },
-                    onSave = { newBond -> 
+                    onSave = { newBond ->
                         viewModel.saveEmotionalBond(patientId, genogramaId, newBond)
                         showEmotionalDialog = false
                         editingBondId = null
@@ -326,5 +363,20 @@ fun GenogramaFormScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun GenogramaMenuButton(
+    text: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        modifier = Modifier.widthIn(min = 176.dp)
+    ) {
+        Text(text)
     }
 }

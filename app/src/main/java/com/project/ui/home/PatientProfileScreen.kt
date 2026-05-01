@@ -131,7 +131,7 @@ fun PatientProfileScreen(
                         ecomapaViewModel.deleteEcomapa(patientId, ecomapaToDelete!!)
                         ecomapaToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("Excluir")
                 }
@@ -155,7 +155,7 @@ fun PatientProfileScreen(
                         genogramaViewModel.deleteGenograma(patientId, genogramaToDelete!!)
                         genogramaToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("Excluir")
                 }
@@ -303,7 +303,7 @@ fun PatientProfileScreen(
                                     Icons.Default.Person,
                                     contentDescription = "Avatar",
                                     modifier = Modifier.size(48.dp),
-                                    tint = Color(0xFF7E57C2)
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -388,10 +388,10 @@ fun PatientProfileScreen(
                 // Actions
                 Row {
                     TooltipIconButton(tooltipText = "Editar", onClick = { showEditDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color(0xFF512DA8))
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
                     }
                     TooltipIconButton(tooltipText = "Excluir", onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = Color.Red)
+                        Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
                     }
                     TooltipIconButton(tooltipText = "Compartilhar", onClick = { 
                         coroutineScope.launch {
@@ -692,7 +692,7 @@ fun DocumentItem(
                     onClick = { expanded = false; onDuplicate() }
                 )
                 DropdownMenuItem(
-                    text = { Text("Deletar", color = Color.Red) },
+                    text = { Text("Deletar", color = MaterialTheme.colorScheme.error) },
                     onClick = { expanded = false; onDelete() }
                 )
             }
@@ -714,7 +714,7 @@ fun DeleteProfileConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Text("Excluir")
             }
@@ -752,12 +752,12 @@ fun EmptyListState(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, contentDescription = null, tint = Color.White)
+                    Icon(icon, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(buttonText, color = Color.White)
+                    Text(buttonText)
                 }
             }
         }

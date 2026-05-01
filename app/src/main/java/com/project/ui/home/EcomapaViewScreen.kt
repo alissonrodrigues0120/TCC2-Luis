@@ -367,7 +367,7 @@ if (networkToDelete != null) {
                     networkToDelete = null
                     Toast.makeText(context, "Rede removida", Toast.LENGTH_SHORT).show()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Text("Excluir")
             }

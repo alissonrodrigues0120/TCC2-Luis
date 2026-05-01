@@ -159,7 +159,7 @@ fun AddPatientScreen(
                 if (nameError) {
                     Text(
                         text = "Nome é obrigatório",
-                        color = Color.Red,
+                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(top = 4.dp)
                     )
@@ -295,9 +295,9 @@ fun AddPatientScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Salvar", color = Color.White)
+                    Text("Salvar")
                 }
 
                 if(DialogSave){

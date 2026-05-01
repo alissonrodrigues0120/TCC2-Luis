@@ -923,7 +923,7 @@ fun GenogramaViewScreen(
                             viewModel.deleteUnion(patientId, genogramaId, unionToDelete!!.id)
                             unionToDelete = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
                         Text("Excluir")
                     }
@@ -947,7 +947,7 @@ fun GenogramaViewScreen(
                             viewModel.deleteFiliation(patientId, genogramaId, filiationToDelete!!.id)
                             filiationToDelete = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
                         Text("Excluir")
                     }
@@ -971,7 +971,7 @@ fun GenogramaViewScreen(
                             viewModel.deleteEmotionalBond(patientId, genogramaId, bondToDelete!!.id)
                             bondToDelete = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
                         Text("Excluir")
                     }

@@ -65,6 +65,7 @@ import coil.compose.AsyncImage
 import com.project.utils.ImageCompressor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,6 +78,7 @@ import com.project.data.model.Patient
 @Composable
 fun HomeScreen(
     homeViewModel: HomeViewModel,
+    userName: String,
     patients: List<Patient>,
     isRefreshing: Boolean,
     isLoading: Boolean,
@@ -100,15 +102,21 @@ fun HomeScreen(
 
 
 
-    val purple500 = Color(0xFFB39DDB)
-    val purple700 = Color(0xFF512DA8)
+    val homeTitle = userName.trim().takeIf { it.isNotBlank() }?.let { "Pacientes de $it" } ?: "Pacientes"
 
     val pullRefreshState = rememberPullToRefreshState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Meus Pacientes", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = homeTitle,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 actions = {
                     val toggle = com.project.LocalThemeToggle.current
                     val isDark = com.project.LocalIsDarkTheme.current
@@ -122,6 +130,59 @@ fun HomeScreen(
                     containerColor = Color.Transparent
                 )
             )
+        },
+        floatingActionButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                AnimatedVisibility(
+                    visible = isMenuExpanded,
+                    enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        MenuButton(
+                            icon = Icons.Default.ExitToApp,
+                            text = "Desconectar",
+                            onClick = {
+                                isMenuExpanded = false
+                                showLogoutDialog = true
+                            }
+                        )
+
+                        MenuButton(
+                            icon = Icons.Default.Share,
+                            text = "Importar Paciente",
+                            onClick = {
+                                isMenuExpanded = false
+                                onImportCsv()
+                            }
+                        )
+
+                        MenuButton(
+                            icon = Icons.Default.Add,
+                            text = "Adicionar",
+                            onClick = {
+                                isMenuExpanded = false
+                                onAddPatient()
+                            }
+                        )
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { isMenuExpanded = !isMenuExpanded },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = if (isMenuExpanded) "Fechar menu" else "Abrir menu"
+                    )
+                }
+            }
         }
     ) { innerPadding ->
         Box(
@@ -155,78 +216,6 @@ fun HomeScreen(
                         onClick = { onPatientClick(patient.id) }
                     )
                 }
-            }
-        }
-
-        // 🔹 Menu expansível
-        AnimatedVisibility(
-            visible = isMenuExpanded,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Bottom
-            ) {
-
-                MenuButton(
-                    icon = Icons.Default.ExitToApp,
-                    text = "Desconectar",
-                    backgroundColor = purple700,
-                    onClick = {
-                        isMenuExpanded = false
-                        showLogoutDialog = true
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                MenuButton(
-                    icon = Icons.Default.Share,
-                    text = "Importar Paciente",
-                    backgroundColor = purple500,
-                    onClick = {
-                        isMenuExpanded = false
-                        onImportCsv()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                MenuButton(
-                    icon = Icons.Default.Add,
-                    text = "Adicionar",
-                    backgroundColor = purple500,
-                    onClick = {
-                        isMenuExpanded = false
-                        onAddPatient()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                FloatingActionButton(
-                    onClick = { isMenuExpanded = false },
-                    containerColor = purple500
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Fechar menu")
-                }
-            }
-        }
-
-        // 🔹 FAB principal
-        if (!isMenuExpanded) {
-            FloatingActionButton(
-                onClick = { isMenuExpanded = true },
-                containerColor = purple500,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Abrir menu")
             }
         }
 
@@ -420,12 +409,12 @@ private fun EmptyPatientsList(onAddPatient: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onAddPatient,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Row {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Adicionar Paciente", color = Color.White)
+                    Text("Adicionar Paciente")
                 }
             }
         }
@@ -474,7 +463,7 @@ private fun PatientItem(
                         Icon(
                             Icons.Default.Person,
                             contentDescription = "Paciente",
-                            tint = Color(0xFF7E57C2),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -512,7 +501,7 @@ private fun PatientItem(
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = "Editar",
-                    tint = Color(0xFF512DA8)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -520,7 +509,7 @@ private fun PatientItem(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Excluir",
-                    tint = Color.Red
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -531,13 +520,12 @@ private fun PatientItem(
 private fun MenuButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
-    backgroundColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = backgroundColor),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         shape = MaterialTheme.shapes.medium,
         modifier = modifier
             .width(200.dp)
@@ -546,13 +534,11 @@ private fun MenuButton(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = text,
-                color = Color.White,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -571,7 +557,7 @@ private fun LogoutConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB39DDB))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Sim, sair")
             }
@@ -597,7 +583,7 @@ private fun DeleteConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Text("Excluir")
             }

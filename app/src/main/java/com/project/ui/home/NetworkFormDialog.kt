@@ -38,16 +38,16 @@ fun NetworkOptionsDialog(
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onDetails) {
-                    Text("Detalhes", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                    Text("Detalhes", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
                 TextButton(onClick = onEdit) {
-                    Text("Editar", color = Color(0xFF512DA8), fontWeight = FontWeight.Bold)
+                    Text("Editar", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDelete) {
-                Text("Excluir", color = Color(0xFFC62828), fontWeight = FontWeight.Bold)
+                Text("Excluir", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             }
         }
     )
@@ -203,7 +203,7 @@ fun NetworkFormDialog(
                                     Checkbox(
                                         checked = selectedApoios[apoio] ?: false,
                                         onCheckedChange = { selectedApoios[apoio] = it },
-                                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF7E57C2))
+                                        colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                                     )
                                 }
                             }
@@ -231,7 +231,7 @@ fun NetworkFormDialog(
                             Switch(
                                 checked = geraEstresse,
                                 onCheckedChange = { geraEstresse = it },
-                                colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF7E57C2))
+                                colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(if (geraEstresse) "Sim" else "Não", fontSize = 14.sp)
@@ -264,14 +264,14 @@ fun NetworkFormDialog(
                             )
                             onSave(network)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
                             .padding(bottom = 8.dp)
                     ) {
-                        Text("Salvar Alteraçōes", fontSize = 16.sp, color = Color.White)
+                        Text("Salvar Alteraçōes", fontSize = 16.sp)
                     }
                     
                     Spacer(modifier = Modifier.height(32.dp))

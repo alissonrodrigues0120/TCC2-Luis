@@ -169,7 +169,7 @@ fun AddNetworkScreen(
                             Checkbox(
                                 checked = selectedApoios[apoio] ?: false,
                                 onCheckedChange = { selectedApoios[apoio] = it },
-                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF7E57C2))
+                                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                             )
                         }
                     }
@@ -197,7 +197,7 @@ fun AddNetworkScreen(
                     Switch(
                         checked = geraEstresse,
                         onCheckedChange = { geraEstresse = it },
-                        colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFF7E57C2))
+                        colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(if (geraEstresse) "Sim" else "Não", fontSize = 14.sp)
@@ -228,14 +228,14 @@ fun AddNetworkScreen(
                     }
                     onBack() // Retornar visualmente de imediato
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
                     .padding(bottom = 8.dp)
             ) {
-                Text("Salvar", fontSize = 16.sp, color = Color.White)
+                Text("Salvar", fontSize = 16.sp)
             }
             
             Spacer(modifier = Modifier.height(16.dp))

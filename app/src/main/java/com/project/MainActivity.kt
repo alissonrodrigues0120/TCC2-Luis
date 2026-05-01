@@ -89,6 +89,7 @@ fun MainScreen(
     homeViewModel: HomeViewModel,
     ecomapaViewModel: EcomapaViewModel,
     genogramaViewModel: com.project.ui.home.GenogramaViewModel,
+    userName: String,
     modifier: Modifier = Modifier,
     onLogout: () -> Unit
 ) {
@@ -124,6 +125,7 @@ fun MainScreen(
             composable(AppDestinations.HOME.route) {
                 HomeScreen(
                     homeViewModel = homeViewModel,
+                    userName = userName,
                     patients = state.patients,
                     isRefreshing = state.isRefreshing,
                     isLoading = state.isLoading,
@@ -400,6 +402,10 @@ fun TcctwoApp(modifier: Modifier = Modifier, initialPendingUri: android.net.Uri?
                 factory = com.project.ui.home.GenogramaViewModelFactory(genogramaRepository)
             )
 
+            val userName by remember(userId) {
+                com.project.data.repository.UserRepository().getUserName(userId)
+            }.collectAsState(initial = "")
+
             var showImportDialog by remember { mutableStateOf(pendingUri != null) }
             val context = androidx.compose.ui.platform.LocalContext.current
             val coroutineScope = rememberCoroutineScope()
@@ -444,6 +450,7 @@ fun TcctwoApp(modifier: Modifier = Modifier, initialPendingUri: android.net.Uri?
                 homeViewModel = homeViewModel,
                 ecomapaViewModel = ecomapaViewModel,
                 genogramaViewModel = genogramaViewModel,
+                userName = userName,
                 onLogout = {
                     FirebaseAuth.getInstance().signOut()
                     isLoggedIn = false

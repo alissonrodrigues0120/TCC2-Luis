@@ -74,23 +74,23 @@ fun EcomapaFormScreen(
                     ) {
                         Button(
                             onClick = { isMenuExpanded = false; onAddInstitution() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("Adicionar Instituição", color = Color.White)
+                            Text("Adicionar Instituição")
                         }
                         Button(
                             onClick = { isMenuExpanded = false; onBack() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("Salvar Ecomapa", color = Color.White)
+                            Text("Salvar Ecomapa")
                         }
                     }
                 }
 
                 FloatingActionButton(
                     onClick = { isMenuExpanded = !isMenuExpanded },
-                    containerColor = Color(0xFF512DA8),
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(
                         imageVector = if (isMenuExpanded) Icons.Default.Close else Icons.Default.Add,
@@ -156,7 +156,7 @@ fun EcomapaFormScreen(
                                 viewModel.deleteSupportNetwork(patientId, ecomapaId, networkToDelete!!.id)
                                 networkToDelete = null
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) {
                             Text("Excluir")
                         }

@@ -1,6 +1,7 @@
 package com.project.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.SetOptions
 import com.project.data.model.User
 import com.project.data.remote.FirestoreService
@@ -22,9 +23,17 @@ class AuthRepository {
             .createUserWithEmailAndPassword(email, password)
             .await()
 
-        val uid = result.user!!.uid
+        val firebaseUser = result.user!!
+        val uid = firebaseUser.uid
+
+        firebaseUser.updateProfile(
+            UserProfileChangeRequest.Builder()
+                .setDisplayName(name)
+                .build()
+        ).await()
 
        val user = User(
+            id = uid,
             name = name,
             email = email,
             senha = password 

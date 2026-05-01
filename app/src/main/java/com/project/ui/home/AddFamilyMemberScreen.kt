@@ -75,7 +75,7 @@ fun AddFamilyMemberScreen(
                     onCheckedChange = { /* Bloqueado pois já é auto-povoado */ },
                     enabled = false // Bloqueia edicao
                 )
-                Text(if(isEgo) "Paciente Foco (Ego Centralizado)" else "Membro Familiar Típico", color = if(isEgo) Color(0xFF512DA8) else Color.Gray)
+                Text(if(isEgo) "Paciente Foco (Ego Centralizado)" else "Membro Familiar Típico", color = if(isEgo) MaterialTheme.colorScheme.primary else Color.Gray)
             }
             
             // Name
@@ -245,7 +245,7 @@ fun AddFamilyMemberScreen(
                     onBack()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF512DA8))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text(if (memberId == null) "Cadastrar Familiar" else "Salvar Alterações")
             }
