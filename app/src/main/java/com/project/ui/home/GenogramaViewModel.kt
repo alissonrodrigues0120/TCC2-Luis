@@ -1,10 +1,7 @@
 package com.project.ui.home
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.project.ui.components.TooltipIconButton
-
 import com.project.data.model.EmotionalBond
 import com.project.data.model.FamilyMember
 import com.project.data.model.GenogramFiliation
@@ -31,7 +28,7 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
     private val _state = MutableStateFlow(GenogramaState())
     val state: StateFlow<GenogramaState> = _state
 
-    // --- GENOGRAMAS BAISCO ---
+    // --- GENOGRAMAS BASICO ---
 
     fun loadGenogramas(patientId: String) {
         viewModelScope.launch {
@@ -173,15 +170,5 @@ class GenogramaViewModel(private val repository: GenogramaRepository) : ViewMode
 
     suspend fun exportGenogramasData(patientId: String): GenogramaRepository.GenogramaExportData {
         return repository.exportGenogramasData(patientId)
-    }
-}
-
-class GenogramaViewModelFactory(private val repository: GenogramaRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(GenogramaViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return GenogramaViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

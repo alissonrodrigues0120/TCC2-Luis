@@ -35,8 +35,7 @@ class AuthRepository {
        val user = User(
             id = uid,
             name = name,
-            email = email,
-            senha = password 
+            email = email
         )
 
         users.document(uid)

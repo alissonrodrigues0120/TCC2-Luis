@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.project.ui.theme.LocalIsDarkTheme
+import com.project.ui.theme.LocalThemeToggle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,8 +210,8 @@ fun PatientProfileScreen(
                     containerColor = Color.Transparent
                 ),
                 actions = {
-                    val toggle = com.project.LocalThemeToggle.current
-                    val isDark = com.project.LocalIsDarkTheme.current
+                    val toggle = LocalThemeToggle.current
+                    val isDark = LocalIsDarkTheme.current
                     Switch(
                         checked = isDark,
                         onCheckedChange = { toggle() },

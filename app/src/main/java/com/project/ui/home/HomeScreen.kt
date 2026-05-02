@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.project.ui.components.TooltipIconButton
+import com.project.ui.theme.LocalIsDarkTheme
+import com.project.ui.theme.LocalThemeToggle
 
 import com.project.data.model.Patient
 
@@ -118,8 +120,8 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    val toggle = com.project.LocalThemeToggle.current
-                    val isDark = com.project.LocalIsDarkTheme.current
+                    val toggle = LocalThemeToggle.current
+                    val isDark = LocalIsDarkTheme.current
                     Switch(
                         checked = isDark,
                         onCheckedChange = { toggle() },

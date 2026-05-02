@@ -4,10 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.project.data.model.EmotionalBond
 import com.project.data.model.Ecomapa
+import com.project.data.model.FamilyMember
+import com.project.data.model.GenogramFiliation
+import com.project.data.model.GenogramUnion
 import com.project.data.model.Patient
 import com.project.data.model.SupportNetwork
-import com.project.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -16,6 +19,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.util.UUID
 
 class DataSyncManager(private val context: Context) {
 
@@ -25,11 +29,43 @@ class DataSyncManager(private val context: Context) {
         }
     }
 
+    private fun <T> toJsonArrayWithIds(
+        items: List<T>,
+        toMap: (T) -> Map<String, Any>,
+        getId: (T) -> String
+    ): JSONArray = JSONArray().apply {
+        items.forEach { item ->
+            put(toJsonWithId(toMap(item), getId(item)))
+        }
+    }
+
+    private fun JSONObject.optStringList(key: String): List<String> {
+        val values = optJSONArray(key) ?: return emptyList()
+        return List(values.length()) { index -> values.optString(index) }
+    }
+
+    private fun JSONObject.optFloatOrNull(key: String): Float? =
+        if (has(key)) getDouble(key).toFloat() else null
+
+    private fun JSONObject.optFloatOrZero(key: String): Float =
+        optFloatOrNull(key) ?: 0f
+
+    private fun newDocumentId(): String = UUID.randomUUID().toString()
+
+    private fun mappedId(
+        originalId: String,
+        idMap: Map<String, String>,
+        importedIds: List<String>
+    ): String? = idMap[originalId] ?: importedIds.singleOrNull()
+
+    private fun String.remapId(idMap: Map<String, String>): String =
+        idMap[this] ?: this
+
     suspend fun exportPatientData(
         patient: Patient,
         ecomapas: List<Ecomapa>,
         supportNetworks: List<SupportNetwork>,
-        genogramasData: com.project.data.repository.GenogramaRepository.GenogramaExportData? = null
+        genogramasData: GenogramaRepository.GenogramaExportData? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val rootJson = JSONObject()
@@ -38,37 +74,34 @@ class DataSyncManager(private val context: Context) {
             rootJson.put("patient", JSONObject(patient.toMap()))
             
             // 2. Ecomapas
-            val ecomapasArray = JSONArray()
-            ecomapas.forEach { e -> ecomapasArray.put(toJsonWithId(e.toMap(), e.id)) }
-            rootJson.put("ecomapas", ecomapasArray)
+            rootJson.put("ecomapas", toJsonArrayWithIds(ecomapas, { it.toMap() }, { it.id }))
 
             // 3. Redes de Apoio
-            val networksArray = JSONArray()
-            supportNetworks.forEach { n -> networksArray.put(toJsonWithId(n.toMap(), n.id)) }
-            rootJson.put("supportNetworks", networksArray)
+            rootJson.put("supportNetworks", toJsonArrayWithIds(supportNetworks, { it.toMap() }, { it.id }))
 
             // 4. Genogramas
             val genogramasObj = JSONObject()
             if (genogramasData != null) {
-                val gArray = JSONArray()
-                genogramasData.genogramas.forEach { g -> gArray.put(toJsonWithId(g.toMap(), g.id)) }
-                genogramasObj.put("genogramas", gArray)
-
-                val mArray = JSONArray()
-                genogramasData.members.forEach { m -> mArray.put(toJsonWithId(m.toMap(), m.id)) }
-                genogramasObj.put("members", mArray)
-
-                val uArray = JSONArray()
-                genogramasData.unions.forEach { u -> uArray.put(toJsonWithId(u.toMap(), u.id)) }
-                genogramasObj.put("unions", uArray)
-
-                val fArray = JSONArray()
-                genogramasData.filiations.forEach { f -> fArray.put(toJsonWithId(f.toMap(), f.id)) }
-                genogramasObj.put("filiations", fArray)
-
-                val bArray = JSONArray()
-                genogramasData.bonds.forEach { b -> bArray.put(toJsonWithId(b.toMap(), b.id)) }
-                genogramasObj.put("bonds", bArray)
+                genogramasObj.put(
+                    "genogramas",
+                    toJsonArrayWithIds(genogramasData.genogramas, { it.toMap() }, { it.id })
+                )
+                genogramasObj.put(
+                    "members",
+                    toJsonArrayWithIds(genogramasData.members, { it.toMap() }, { it.id })
+                )
+                genogramasObj.put(
+                    "unions",
+                    toJsonArrayWithIds(genogramasData.unions, { it.toMap() }, { it.id })
+                )
+                genogramasObj.put(
+                    "filiations",
+                    toJsonArrayWithIds(genogramasData.filiations, { it.toMap() }, { it.id })
+                )
+                genogramasObj.put(
+                    "bonds",
+                    toJsonArrayWithIds(genogramasData.bonds, { it.toMap() }, { it.id })
+                )
             }
             rootJson.put("genogramasData", genogramasObj)
 
@@ -125,8 +158,8 @@ class DataSyncManager(private val context: Context) {
             val networksArray = rootJson.getJSONArray("supportNetworks")
 
             // Reconstruct and insert Patient
-            val patientRepo = com.project.data.repository.PatientRepository(userId)
-            val ecomapaRepo = com.project.data.repository.EcomapaRepository(userId)
+            val patientRepo = PatientRepository(userId)
+            val ecomapaRepo = EcomapaRepository(userId)
 
             val originalPatient = Patient(
                 name = patientJson.optString("name", "Importado"),
@@ -164,17 +197,9 @@ class DataSyncManager(private val context: Context) {
             for (i in 0 until networksArray.length()) {
                 val nJson = networksArray.getJSONObject(i)
                 val oldEcomapaId = nJson.optString("ecomapaId", "")
-                val mappedEcomapaId = ecomapaIdMap[oldEcomapaId] ?: importedEcomapaIds.singleOrNull()
+                val mappedEcomapaId = mappedId(oldEcomapaId, ecomapaIdMap, importedEcomapaIds)
 
                 if (mappedEcomapaId != null) {
-                    val supportTypesJson = nJson.optJSONArray("supportTypes")
-                    val supportTypes = mutableListOf<String>()
-                    if (supportTypesJson != null) {
-                        for (j in 0 until supportTypesJson.length()) {
-                            supportTypes.add(supportTypesJson.getString(j))
-                        }
-                    }
-
                     val network = SupportNetwork(
                         name = nJson.optString("name", ""),
                         connectionType = nJson.optString("connectionType", ""),
@@ -183,10 +208,10 @@ class DataSyncManager(private val context: Context) {
                         contactFrequency = nJson.optString("contactFrequency", ""),
                         supportDirection = nJson.optString("supportDirection", ""),
                         description = nJson.optString("description", ""),
-                        supportTypes = supportTypes,
+                        supportTypes = nJson.optStringList("supportTypes"),
                         generatesStress = nJson.optBoolean("generatesStress", false),
-                        posX = if (nJson.has("posX")) nJson.getDouble("posX").toFloat() else null,
-                        posY = if (nJson.has("posY")) nJson.getDouble("posY").toFloat() else null,
+                        posX = nJson.optFloatOrNull("posX"),
+                        posY = nJson.optFloatOrNull("posY"),
                         ecomapaId = mappedEcomapaId,
                         patientId = newPatientId,
                         createdAt = nJson.optLong("createdAt", System.currentTimeMillis())
@@ -196,7 +221,7 @@ class DataSyncManager(private val context: Context) {
             }
 
             onProgress("Restaurando Genogramas...")
-            val genogramaRepo = com.project.data.repository.GenogramaRepository(userId)
+            val genogramaRepo = GenogramaRepository(userId)
             val genogramasDataObj = rootJson.optJSONObject("genogramasData")
             
             if (genogramasDataObj != null && genogramasDataObj.has("genogramas")) {
@@ -230,19 +255,11 @@ class DataSyncManager(private val context: Context) {
                     for (i in 0 until mArray.length()) {
                         val mJson = mArray.getJSONObject(i)
                         val oldGId = mJson.optString("genogramaId", "")
-                        val mappedGId = genogramaIdMap[oldGId] ?: importedGenogramaIds.singleOrNull()
+                        val mappedGId = mappedId(oldGId, genogramaIdMap, importedGenogramaIds)
                         if (mappedGId != null) {
                             val oldMId = mJson.optString("id", "")
-                            val newMId = java.util.UUID.randomUUID().toString()
+                            val newMId = newDocumentId()
                             if (oldMId.isNotEmpty()) memberIdMap[oldMId] = newMId
-
-                            val condicoesSaude = mutableListOf<String>()
-                            val condicoesSaudeJson = mJson.optJSONArray("condicoesSaude")
-                            if (condicoesSaudeJson != null) {
-                                for (j in 0 until condicoesSaudeJson.length()) {
-                                    condicoesSaude.add(condicoesSaudeJson.optString(j))
-                                }
-                            }
 
                             val observacoes = buildString {
                                 val observacoesAtuais = mJson.optString("observacoes", "").trim()
@@ -269,12 +286,12 @@ class DataSyncManager(private val context: Context) {
                                 falecimento = mJson.optString("falecimento", mJson.optString("dataFalecimento", "")),
                                 causaMorte = mJson.optString("causaMorte", ""),
                                 ocupacao = mJson.optString("ocupacao", ""),
-                                condicoesSaude = condicoesSaude,
+                                condicoesSaude = mJson.optStringList("condicoesSaude"),
                                 observacoes = observacoes,
                                 isEgo = mJson.optBoolean("isEgo", false),
                                 geracao = mJson.optInt("geracao", 0),
-                                offsetX = if (mJson.has("offsetX")) mJson.getDouble("offsetX").toFloat() else 0f,
-                                offsetY = if (mJson.has("offsetY")) mJson.getDouble("offsetY").toFloat() else 0f,
+                                offsetX = mJson.optFloatOrZero("offsetX"),
+                                offsetY = mJson.optFloatOrZero("offsetY"),
                                 createdAt = mJson.optLong("createdAt", System.currentTimeMillis())
                             )
                             genogramaRepo.saveMember(newPatientId, mappedGId, member)
@@ -287,18 +304,18 @@ class DataSyncManager(private val context: Context) {
                     for (i in 0 until uArray.length()) {
                         val uJson = uArray.getJSONObject(i)
                         val oldGId = uJson.optString("genogramaId", "")
-                        val mappedGId = genogramaIdMap[oldGId] ?: importedGenogramaIds.singleOrNull()
+                        val mappedGId = mappedId(oldGId, genogramaIdMap, importedGenogramaIds)
                         if (mappedGId != null) {
                             val oldUId = uJson.optString("id", "")
-                            val newUId = java.util.UUID.randomUUID().toString()
+                            val newUId = newDocumentId()
                             if (oldUId.isNotEmpty()) unionIdMap[oldUId] = newUId
 
                             val union = GenogramUnion(
                                 id = newUId,
                                 genogramaId = mappedGId,
                                 patientId = newPatientId,
-                                membroA = memberIdMap[uJson.optString("membroA")] ?: uJson.optString("membroA"),
-                                membroB = memberIdMap[uJson.optString("membroB")] ?: uJson.optString("membroB"),
+                                membroA = uJson.optString("membroA").remapId(memberIdMap),
+                                membroB = uJson.optString("membroB").remapId(memberIdMap),
                                 tipo = uJson.optString("tipo", uJson.optString("tipoUniao", "Casamento")),
                                 status = uJson.optString("status", "Ativo"),
                                 dataInicio = uJson.optString("dataInicio", ""),
@@ -315,7 +332,7 @@ class DataSyncManager(private val context: Context) {
                     for (i in 0 until fArray.length()) {
                         val fJson = fArray.getJSONObject(i)
                         val oldGId = fJson.optString("genogramaId", "")
-                        val mappedGId = genogramaIdMap[oldGId] ?: importedGenogramaIds.singleOrNull()
+                        val mappedGId = mappedId(oldGId, genogramaIdMap, importedGenogramaIds)
                         if (mappedGId != null) {
                             val gemelar = when {
                                 fJson.has("gemelar") -> fJson.optString("gemelar", "nenhum")
@@ -325,16 +342,16 @@ class DataSyncManager(private val context: Context) {
                             }
 
                             val filiation = GenogramFiliation(
-                                id = java.util.UUID.randomUUID().toString(),
+                                id = newDocumentId(),
                                 genogramaId = mappedGId,
                                 patientId = newPatientId,
-                                uniaoOrigemId = unionIdMap[fJson.optString("uniaoOrigemId")] ?: fJson.optString("uniaoOrigemId"),
-                                filhoId = memberIdMap[fJson.optString("filhoId")] ?: fJson.optString("filhoId"),
-                                paiId = memberIdMap[fJson.optString("paiId")] ?: fJson.optString("paiId"),
-                                maeId = memberIdMap[fJson.optString("maeId")] ?: fJson.optString("maeId"),
+                                uniaoOrigemId = fJson.optString("uniaoOrigemId").remapId(unionIdMap),
+                                filhoId = fJson.optString("filhoId").remapId(memberIdMap),
+                                paiId = fJson.optString("paiId").remapId(memberIdMap),
+                                maeId = fJson.optString("maeId").remapId(memberIdMap),
                                 tipo = fJson.optString("tipo", fJson.optString("tipoFilhacao", "Biológico")),
                                 gemelar = gemelar,
-                                parGemelarId = memberIdMap[fJson.optString("parGemelarId")] ?: fJson.optString("parGemelarId"),
+                                parGemelarId = fJson.optString("parGemelarId").remapId(memberIdMap),
                                 createdAt = fJson.optLong("createdAt", System.currentTimeMillis())
                             )
                             genogramaRepo.saveFiliation(newPatientId, mappedGId, filiation)
@@ -347,7 +364,7 @@ class DataSyncManager(private val context: Context) {
                     for (i in 0 until bArray.length()) {
                         val bJson = bArray.getJSONObject(i)
                         val oldGId = bJson.optString("genogramaId", "")
-                        val mappedGId = genogramaIdMap[oldGId] ?: importedGenogramaIds.singleOrNull()
+                        val mappedGId = mappedId(oldGId, genogramaIdMap, importedGenogramaIds)
                         if (mappedGId != null) {
                             val tipo = when {
                                 bJson.has("tipo") -> bJson.optString("tipo", "")
@@ -357,11 +374,11 @@ class DataSyncManager(private val context: Context) {
                             }
 
                             val bond = EmotionalBond(
-                                id = java.util.UUID.randomUUID().toString(),
+                                id = newDocumentId(),
                                 genogramaId = mappedGId,
                                 patientId = newPatientId,
-                                membroAId = memberIdMap[bJson.optString("membroAId")] ?: bJson.optString("membroAId"),
-                                membroBId = memberIdMap[bJson.optString("membroBId")] ?: bJson.optString("membroBId"),
+                                membroAId = bJson.optString("membroAId").remapId(memberIdMap),
+                                membroBId = bJson.optString("membroBId").remapId(memberIdMap),
                                 tipo = tipo,
                                 isConflict = bJson.optBoolean("isConflict", tipo == "Conflituoso"),
                                 details = bJson.optString("details", ""),

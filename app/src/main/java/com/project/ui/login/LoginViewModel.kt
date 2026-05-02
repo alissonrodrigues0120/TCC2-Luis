@@ -2,18 +2,12 @@ package com.project.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project.ui.components.TooltipIconButton
-
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.resumeWithException
 
 class LoginViewModel : ViewModel() {
 
@@ -21,7 +15,7 @@ class LoginViewModel : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
-    
+
     private var failedAttempts = 0
 
     fun login(email: String, senha: String) {
@@ -29,12 +23,11 @@ class LoginViewModel : ViewModel() {
             _loginState.value = LoginState.TooManyFailures("Muitas tentativas falhas. Redefina sua senha ou tente novamente mais tarde.")
             return
         }
-        
+
         viewModelScope.launch {
             _loginState.value = LoginState.Loading
 
             try {
-                // Realiza autenticação no Firebase
                 val result = auth.signInWithEmailAndPassword(email.trim(), senha.trim()).await()
 
                 if (result.user != null) {
@@ -56,11 +49,11 @@ class LoginViewModel : ViewModel() {
                     else ->
                         "Erro ao fazer login: ${e.message}"
                 }
-                
+
                 if (e is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException || e.message?.contains("wrong password") == true) {
                     failedAttempts++
                 }
-                
+
                 if (failedAttempts >= 3) {
                     _loginState.value = LoginState.TooManyFailures("Aviso: Falhas consecutivas de login detectadas. Confirme sua senha.")
                 } else {
@@ -74,7 +67,6 @@ class LoginViewModel : ViewModel() {
         _loginState.value = LoginState.Idle
     }
 
-    // Verifica se já tem usuário autenticado
     fun checkCurrentUser(): FirebaseUser? {
         return auth.currentUser
     }
@@ -86,17 +78,4 @@ sealed class LoginState {
     data class Success(val userId: String) : LoginState()
     data class Error(val message: String) : LoginState()
     data class TooManyFailures(val message: String) : LoginState()
-}
-
-// Extensão para Firebase Tasks (adicione em um arquivo separado se preferir)
-suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T {
-    return suspendCancellableCoroutine { continuation ->
-        addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                continuation.resume(task.result, null)
-            } else {
-                continuation.resumeWithException(task.exception ?: RuntimeException("Operation failed"))
-            }
-        }
-    }
 }

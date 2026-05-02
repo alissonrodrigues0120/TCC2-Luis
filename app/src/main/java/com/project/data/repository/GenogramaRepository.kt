@@ -1,94 +1,54 @@
 package com.project.data.repository
 
-import com.google.firebase.FirebaseApp
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.QuerySnapshot
-import com.google.firebase.firestore.Source
 import com.project.data.model.EmotionalBond
 import com.project.data.model.FamilyMember
 import com.project.data.model.GenogramFiliation
 import com.project.data.model.GenogramUnion
 import com.project.data.model.Genograma
-import kotlinx.coroutines.channels.awaitClose
+import com.project.data.remote.UserFirestore
+import com.project.data.remote.getCacheFirst
+import com.project.data.remote.observeDocuments
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 
 class GenogramaRepository(private val userId: String) {
 
-    private val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance())
+    private val firestore = UserFirestore(userId)
 
-    private val isValidUserId: Boolean get() = userId.isNotBlank()
-
-    // --- Base Collection Navigation ---
+    private val isValidUserId: Boolean get() = firestore.hasUser
 
     private fun getGenogramasCollection(patientId: String) =
-        if (isValidUserId) db.collection("users").document(userId).collection("patients").document(patientId).collection("genogramas") else null
+        firestore.patientSubcollection(patientId, GENOGRAMAS_COLLECTION)
 
     private fun getMembersCollection(patientId: String, genogramaId: String) =
-        getGenogramasCollection(patientId)?.document(genogramaId)?.collection("members")
+        getGenogramasCollection(patientId)?.document(genogramaId)?.collection(MEMBERS_COLLECTION)
 
     private fun getUnionsCollection(patientId: String, genogramaId: String) =
-        getGenogramasCollection(patientId)?.document(genogramaId)?.collection("unions")
+        getGenogramasCollection(patientId)?.document(genogramaId)?.collection(UNIONS_COLLECTION)
         
     private fun getFiliationsCollection(patientId: String, genogramaId: String) =
-        getGenogramasCollection(patientId)?.document(genogramaId)?.collection("filiations")
+        getGenogramasCollection(patientId)?.document(genogramaId)?.collection(FILIATIONS_COLLECTION)
 
     private fun getEmotionalBondsCollection(patientId: String, genogramaId: String) =
-        getGenogramasCollection(patientId)?.document(genogramaId)?.collection("emotional_bonds")
-
-    private suspend fun getCacheFirst(query: Query): QuerySnapshot {
-        val cached = try {
-            query.get(Source.CACHE).await()
-        } catch (e: Exception) {
-            null
-        }
-
-        if (cached != null && !cached.isEmpty) return cached
-
-        return try {
-            query.get().await()
-        } catch (e: Exception) {
-            cached ?: throw e
-        }
-    }
+        getGenogramasCollection(patientId)?.document(genogramaId)?.collection(EMOTIONAL_BONDS_COLLECTION)
 
     private suspend fun touchPatientUpdate(patientId: String) {
-        if (isValidUserId) {
-            try {
-                db.collection("users").document(userId).collection("patients").document(patientId)
-                    .update("remoteLastUpdate", System.currentTimeMillis())
-            } catch (e: Exception) {
-                // Ignore if offline or not found
-            }
-        }
+        firestore.touchPatientUpdate(patientId)
     }
 
 
     // --- GENOGRAMA METHODS ---
 
-    fun getGenogramas(patientId: String): Flow<List<Genograma>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val query = getGenogramasCollection(patientId)!!.orderBy("createdAt", Query.Direction.DESCENDING)
-            val listener = query.addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                snapshot?.let {
-                    trySend(it.documents.mapNotNull { doc -> Genograma.fromSnapshot(doc) })
-                }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getGenogramas(patientId: String): Flow<List<Genograma>> =
+        getGenogramasCollection(patientId)
+            ?.orderBy("createdAt", Query.Direction.DESCENDING)
+            .observeDocuments { Genograma.fromSnapshot(it) }
 
     suspend fun renameGenograma(patientId: String, genogramaId: String, newTitle: String) {
         if (!isValidUserId) return
         try {
-            getGenogramasCollection(patientId)?.document(genogramaId)?.update("title", newTitle)
+            getGenogramasCollection(patientId)?.document(genogramaId)?.update("title", newTitle)?.await()
             touchPatientUpdate(patientId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -101,7 +61,7 @@ class GenogramaRepository(private val userId: String) {
             val collection = getGenogramasCollection(patientId) ?: return null
             val docRef = collection.document()
             val genograma = Genograma(id = docRef.id, patientId = patientId, title = title)
-            docRef.set(genograma.toMap())
+            docRef.set(genograma.toMap()).await()
             touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
@@ -113,7 +73,7 @@ class GenogramaRepository(private val userId: String) {
     suspend fun deleteGenograma(patientId: String, genogramaId: String): Boolean {
         if (!isValidUserId) return false
         return try {
-            getGenogramasCollection(patientId)?.document(genogramaId)?.delete()
+            getGenogramasCollection(patientId)?.document(genogramaId)?.delete()?.await()
             touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
@@ -125,108 +85,84 @@ class GenogramaRepository(private val userId: String) {
 
     // --- FAMILY MEMBERS ---
 
-    fun getMembers(patientId: String, genogramaId: String): Flow<List<FamilyMember>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val coll = getMembersCollection(patientId, genogramaId) ?: return@callbackFlow
-            val listener = coll.orderBy("createdAt").addSnapshotListener { snap, err ->
-                if (err != null) return@addSnapshotListener
-                snap?.let { trySend(it.documents.mapNotNull { doc -> FamilyMember.fromSnapshot(doc) }) }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getMembers(patientId: String, genogramaId: String): Flow<List<FamilyMember>> =
+        getMembersCollection(patientId, genogramaId)
+            ?.orderBy("createdAt")
+            .observeDocuments { FamilyMember.fromSnapshot(it) }
 
     suspend fun saveMember(patientId: String, genogramaId: String, member: FamilyMember): String? {
         if (!isValidUserId) return null
         return try {
             val coll = getMembersCollection(patientId, genogramaId) ?: return null
             val docRef = if (member.id.isEmpty()) coll.document() else coll.document(member.id)
-            docRef.set(member.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+            docRef.set(member.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap()).await()
             touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) { e.printStackTrace(); null }
     }
 
     suspend fun deleteMember(patientId: String, genogramaId: String, memberId: String) {
-        getMembersCollection(patientId, genogramaId)?.document(memberId)?.delete()
+        getMembersCollection(patientId, genogramaId)?.document(memberId)?.delete()?.await()
         touchPatientUpdate(patientId)
     }
 
 
     // --- UNIONS ---
 
-    fun getUnions(patientId: String, genogramaId: String): Flow<List<GenogramUnion>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val coll = getUnionsCollection(patientId, genogramaId) ?: return@callbackFlow
-            val listener = coll.orderBy("createdAt").addSnapshotListener { snap, err ->
-                if (err != null) return@addSnapshotListener
-                snap?.let { trySend(it.documents.mapNotNull { doc -> GenogramUnion.fromSnapshot(doc) }) }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getUnions(patientId: String, genogramaId: String): Flow<List<GenogramUnion>> =
+        getUnionsCollection(patientId, genogramaId)
+            ?.orderBy("createdAt")
+            .observeDocuments { GenogramUnion.fromSnapshot(it) }
 
     suspend fun saveUnion(patientId: String, genogramaId: String, union: GenogramUnion) {
         val coll = getUnionsCollection(patientId, genogramaId) ?: return
         val docRef = if (union.id.isEmpty()) coll.document() else coll.document(union.id)
-        docRef.set(union.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        docRef.set(union.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap()).await()
         touchPatientUpdate(patientId)
     }
     
     suspend fun deleteUnion(patientId: String, genogramaId: String, unionId: String) {
-        getUnionsCollection(patientId, genogramaId)?.document(unionId)?.delete()
+        getUnionsCollection(patientId, genogramaId)?.document(unionId)?.delete()?.await()
         touchPatientUpdate(patientId)
     }
 
 
     // --- FILIATIONS ---
 
-    fun getFiliations(patientId: String, genogramaId: String): Flow<List<GenogramFiliation>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val coll = getFiliationsCollection(patientId, genogramaId) ?: return@callbackFlow
-            val listener = coll.orderBy("createdAt").addSnapshotListener { snap, err ->
-                if (err != null) return@addSnapshotListener
-                snap?.let { trySend(it.documents.mapNotNull { doc -> GenogramFiliation.fromSnapshot(doc) }) }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getFiliations(patientId: String, genogramaId: String): Flow<List<GenogramFiliation>> =
+        getFiliationsCollection(patientId, genogramaId)
+            ?.orderBy("createdAt")
+            .observeDocuments { GenogramFiliation.fromSnapshot(it) }
 
     suspend fun saveFiliation(patientId: String, genogramaId: String, filiation: GenogramFiliation) {
         val coll = getFiliationsCollection(patientId, genogramaId) ?: return
         val docRef = if (filiation.id.isEmpty()) coll.document() else coll.document(filiation.id)
-        docRef.set(filiation.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        docRef.set(filiation.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap()).await()
         touchPatientUpdate(patientId)
     }
 
     suspend fun deleteFiliation(patientId: String, genogramaId: String, filiationId: String) {
-        getFiliationsCollection(patientId, genogramaId)?.document(filiationId)?.delete()
+        getFiliationsCollection(patientId, genogramaId)?.document(filiationId)?.delete()?.await()
         touchPatientUpdate(patientId)
     }
 
 
     // --- EMOTIONAL BONDS ---
 
-    fun getEmotionalBonds(patientId: String, genogramaId: String): Flow<List<EmotionalBond>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val coll = getEmotionalBondsCollection(patientId, genogramaId) ?: return@callbackFlow
-            val listener = coll.orderBy("createdAt").addSnapshotListener { snap, err ->
-                if (err != null) return@addSnapshotListener
-                snap?.let { trySend(it.documents.mapNotNull { doc -> EmotionalBond.fromSnapshot(doc) }) }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getEmotionalBonds(patientId: String, genogramaId: String): Flow<List<EmotionalBond>> =
+        getEmotionalBondsCollection(patientId, genogramaId)
+            ?.orderBy("createdAt")
+            .observeDocuments { EmotionalBond.fromSnapshot(it) }
 
     suspend fun saveEmotionalBond(patientId: String, genogramaId: String, bond: EmotionalBond) {
         val coll = getEmotionalBondsCollection(patientId, genogramaId) ?: return
         val docRef = if (bond.id.isEmpty()) coll.document() else coll.document(bond.id)
-        docRef.set(bond.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap())
+        docRef.set(bond.copy(id = docRef.id, genogramaId = genogramaId, patientId = patientId).toMap()).await()
         touchPatientUpdate(patientId)
     }
 
     suspend fun deleteEmotionalBond(patientId: String, genogramaId: String, bondId: String) {
-        getEmotionalBondsCollection(patientId, genogramaId)?.document(bondId)?.delete()
+        getEmotionalBondsCollection(patientId, genogramaId)?.document(bondId)?.delete()?.await()
         touchPatientUpdate(patientId)
     }
 
@@ -237,7 +173,7 @@ class GenogramaRepository(private val userId: String) {
             val docRef = collection.document()
             val newId = docRef.id
             val genograma = Genograma(id = newId, patientId = patientId, title = newTitle)
-            docRef.set(genograma.toMap())
+            docRef.set(genograma.toMap()).await()
             touchPatientUpdate(patientId)
             
             val oldMembersSnap = getMembersCollection(patientId, originalGenogramaId)?.get()?.await()
@@ -315,22 +251,22 @@ class GenogramaRepository(private val userId: String) {
             val bondsList = mutableListOf<EmotionalBond>()
 
             val collection = getGenogramasCollection(patientId) ?: return GenogramaExportData(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
-            val genogramasSnap = getCacheFirst(collection)
+            val genogramasSnap = collection.getCacheFirst()
 
             for (doc in genogramasSnap.documents) {
                 val genograma = Genograma.fromSnapshot(doc)
                 genogramasList.add(genograma)
 
-                val membersSnap = getMembersCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                val membersSnap = getMembersCollection(patientId, genograma.id)?.getCacheFirst()
                 membersSnap?.documents?.forEach { membersList.add(FamilyMember.fromSnapshot(it)) }
 
-                val unionsSnap = getUnionsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                val unionsSnap = getUnionsCollection(patientId, genograma.id)?.getCacheFirst()
                 unionsSnap?.documents?.forEach { unionsList.add(GenogramUnion.fromSnapshot(it)) }
 
-                val filiationsSnap = getFiliationsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                val filiationsSnap = getFiliationsCollection(patientId, genograma.id)?.getCacheFirst()
                 filiationsSnap?.documents?.forEach { filiationsList.add(GenogramFiliation.fromSnapshot(it)) }
 
-                val bondsSnap = getEmotionalBondsCollection(patientId, genograma.id)?.let { getCacheFirst(it) }
+                val bondsSnap = getEmotionalBondsCollection(patientId, genograma.id)?.getCacheFirst()
                 bondsSnap?.documents?.forEach { bondsList.add(EmotionalBond.fromSnapshot(it)) }
             }
 
@@ -339,5 +275,13 @@ class GenogramaRepository(private val userId: String) {
             e.printStackTrace()
             GenogramaExportData(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
         }
+    }
+
+    private companion object {
+        const val GENOGRAMAS_COLLECTION = "genogramas"
+        const val MEMBERS_COLLECTION = "members"
+        const val UNIONS_COLLECTION = "unions"
+        const val FILIATIONS_COLLECTION = "filiations"
+        const val EMOTIONAL_BONDS_COLLECTION = "emotional_bonds"
     }
 }

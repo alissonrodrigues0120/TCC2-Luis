@@ -1,83 +1,43 @@
 package com.project.data.repository
 
-import com.google.firebase.FirebaseApp
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.QuerySnapshot
-import com.google.firebase.firestore.Source
 import com.project.data.model.Ecomapa
 import com.project.data.model.SupportNetwork
-import kotlinx.coroutines.channels.awaitClose
+import com.project.data.remote.UserFirestore
+import com.project.data.remote.getCacheFirst
+import com.project.data.remote.observeDocuments
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.tasks.await
 
 class EcomapaRepository(private val userId: String) {
 
-    private val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance())
+    private val firestore = UserFirestore(userId)
 
-    private val isValidUserId: Boolean get() = userId.isNotBlank()
+    private val isValidUserId: Boolean get() = firestore.hasUser
 
-    // Base Collection for a Patient's Ecomapas
     private fun getEcomapasCollection(patientId: String) =
-        if (isValidUserId) db.collection("users").document(userId).collection("patients").document(patientId).collection("ecomapas") else null
+        firestore.patientSubcollection(patientId, ECOMAPAS_COLLECTION)
 
-    // Base Collection for an Ecomapa's Support Networks
     private fun getSupportNetworksCollection(patientId: String, ecomapaId: String) =
-        getEcomapasCollection(patientId)?.document(ecomapaId)?.collection("supportNetworks")
-
-    private suspend fun getCacheFirst(query: Query): QuerySnapshot {
-        val cached = try {
-            query.get(Source.CACHE).await()
-        } catch (e: Exception) {
-            null
-        }
-
-        if (cached != null && !cached.isEmpty) return cached
-
-        return try {
-            query.get().await()
-        } catch (e: Exception) {
-            cached ?: throw e
-        }
-    }
+        getEcomapasCollection(patientId)?.document(ecomapaId)?.collection(SUPPORT_NETWORKS_COLLECTION)
 
 
 
     // --- ECOMAPA METHODS ---
 
-    fun getEcomapas(patientId: String): Flow<List<Ecomapa>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val query = getEcomapasCollection(patientId)!!.orderBy("createdAt", Query.Direction.DESCENDING)
-            val listener = query.addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                snapshot?.let {
-                    trySend(it.documents.mapNotNull { doc -> Ecomapa.fromSnapshot(doc) })
-                }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getEcomapas(patientId: String): Flow<List<Ecomapa>> =
+        getEcomapasCollection(patientId)
+            ?.orderBy("createdAt", Query.Direction.DESCENDING)
+            .observeDocuments { Ecomapa.fromSnapshot(it) }
 
     private suspend fun touchPatientUpdate(patientId: String) {
-        if (isValidUserId) {
-            try {
-                db.collection("users").document(userId).collection("patients").document(patientId)
-                    .update("remoteLastUpdate", System.currentTimeMillis())
-            } catch (e: Exception) {
-                // se falhar, ok, pode ser offline
-            }
-        }
+        firestore.touchPatientUpdate(patientId)
     }
 
     suspend fun renameEcomapa(patientId: String, ecomapaId: String, newTitle: String) {
         if (!isValidUserId) return
         try {
-            getEcomapasCollection(patientId)?.document(ecomapaId)?.update("title", newTitle)
+            getEcomapasCollection(patientId)?.document(ecomapaId)?.update("title", newTitle)?.await()
             touchPatientUpdate(patientId)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -90,7 +50,7 @@ class EcomapaRepository(private val userId: String) {
             val collection = getEcomapasCollection(patientId) ?: return null
             val docRef = collection.document()
             val ecomapa = Ecomapa(id = docRef.id, patientId = patientId, title = title)
-            docRef.set(ecomapa.toMap())
+            docRef.set(ecomapa.toMap()).await()
             touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
@@ -103,7 +63,7 @@ class EcomapaRepository(private val userId: String) {
         if (!isValidUserId) return false
         return try {
             val collection = getEcomapasCollection(patientId) ?: return false
-            collection.document(ecomapaId).delete()
+            collection.document(ecomapaId).delete().await()
             touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
@@ -114,28 +74,10 @@ class EcomapaRepository(private val userId: String) {
 
     // --- SUPPORT NETWORK METHODS ---
 
-    fun getSupportNetworks(patientId: String, ecomapaId: String): Flow<List<SupportNetwork>> = if (!isValidUserId) flowOf(emptyList()) else {
-        callbackFlow {
-            val collection = getSupportNetworksCollection(patientId, ecomapaId)
-            if (collection == null) {
-                trySend(emptyList())
-                close()
-                return@callbackFlow
-            }
-
-            val query = collection.orderBy("createdAt", Query.Direction.ASCENDING)
-            val listener = query.addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                snapshot?.let {
-                    trySend(it.documents.mapNotNull { doc -> SupportNetwork.fromSnapshot(doc) })
-                }
-            }
-            awaitClose { listener.remove() }
-        }
-    }
+    fun getSupportNetworks(patientId: String, ecomapaId: String): Flow<List<SupportNetwork>> =
+        getSupportNetworksCollection(patientId, ecomapaId)
+            ?.orderBy("createdAt", Query.Direction.ASCENDING)
+            .observeDocuments { SupportNetwork.fromSnapshot(it) }
 
     suspend fun addSupportNetwork(patientId: String, ecomapaId: String, network: SupportNetwork): String? {
         if (!isValidUserId) return null
@@ -143,7 +85,7 @@ class EcomapaRepository(private val userId: String) {
             val collection = getSupportNetworksCollection(patientId, ecomapaId) ?: return null
             val docRef = if (network.id.isEmpty()) collection.document() else collection.document(network.id)
             val newNetwork = network.copy(id = docRef.id, ecomapaId = ecomapaId, patientId = patientId)
-            docRef.set(newNetwork.toMap())
+            docRef.set(newNetwork.toMap()).await()
             touchPatientUpdate(patientId)
             docRef.id
         } catch (e: Exception) {
@@ -156,7 +98,7 @@ class EcomapaRepository(private val userId: String) {
         if (!isValidUserId) return false
         return try {
             val collection = getSupportNetworksCollection(patientId, ecomapaId) ?: return false
-            collection.document(networkId).delete()
+            collection.document(networkId).delete().await()
             touchPatientUpdate(patientId)
             true
         } catch (e: Exception) {
@@ -172,12 +114,15 @@ class EcomapaRepository(private val userId: String) {
             val supportNetworksSet = mutableListOf<SupportNetwork>()
             
             val collection = getEcomapasCollection(patientId) ?: return Pair(emptyList(), emptyList())
-            val ecomapasSnap = getCacheFirst(collection)
+            val ecomapasSnap = collection.getCacheFirst()
             for (doc in ecomapasSnap.documents) {
                 val ecomapa = Ecomapa.fromSnapshot(doc)
                 ecomapasSet.add(ecomapa)
                 
-                val networksSnap = getCacheFirst(collection.document(ecomapa.id).collection("supportNetworks"))
+                val networksSnap = collection
+                    .document(ecomapa.id)
+                    .collection(SUPPORT_NETWORKS_COLLECTION)
+                    .getCacheFirst()
                 supportNetworksSet.addAll(networksSnap.documents.mapNotNull { SupportNetwork.fromSnapshot(it) })
             }
             Pair(ecomapasSet, supportNetworksSet)
@@ -193,16 +138,18 @@ class EcomapaRepository(private val userId: String) {
             val docRef = collection.document()
             val newId = docRef.id
             
-            val originalDoc = collection.document(originalEcomapaId).get().await()
-            val oEco = Ecomapa.fromSnapshot(originalDoc)
             val newEcomapa = Ecomapa(
                 id = newId, 
                 patientId = patientId, 
                 title = newTitle
             )
-            docRef.set(newEcomapa.toMap())
+            docRef.set(newEcomapa.toMap()).await()
             
-            val networksSnap = collection.document(originalEcomapaId).collection("supportNetworks").get().await()
+            val networksSnap = collection
+                .document(originalEcomapaId)
+                .collection(SUPPORT_NETWORKS_COLLECTION)
+                .get()
+                .await()
             
             networksSnap.documents.forEach { doc ->
                 val network = SupportNetwork.fromSnapshot(doc)
@@ -216,5 +163,10 @@ class EcomapaRepository(private val userId: String) {
             e.printStackTrace()
             null
         }
+    }
+
+    private companion object {
+        const val ECOMAPAS_COLLECTION = "ecomapas"
+        const val SUPPORT_NETWORKS_COLLECTION = "supportNetworks"
     }
 }

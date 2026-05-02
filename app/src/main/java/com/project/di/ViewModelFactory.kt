@@ -2,20 +2,16 @@ package com.project.di
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.google.firebase.auth.FirebaseAuth
-import com.project.data.repository.PatientRepository
-import com.project.ui.home.HomeViewModel
 
-class ViewModelFactory : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-        val repository = PatientRepository(userId)
-
-        return when {
-            modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(repository) as T
+inline fun <reified T : ViewModel> viewModelFactory(
+    crossinline builder: () -> T
+): ViewModelProvider.Factory =
+    object : ViewModelProvider.Factory {
+        override fun <VM : ViewModel> create(modelClass: Class<VM>): VM {
+            if (modelClass.isAssignableFrom(T::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return builder() as VM
             }
-            else -> throw IllegalArgumentException("Unknown ViewModel class")
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }
-}
